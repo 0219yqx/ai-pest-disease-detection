@@ -5,6 +5,6 @@ from config import settings
 from knowledge_graph.pest_data import HENAN_HOTSPOTS as HOTSPOTS
 router = APIRouter()
 @router.get("/api/map/key")
-async def get_map_key(): return {"code":200,"data":{"key":settings.AMAP_KEY,"secret":settings.AMAP_SECRET}}
+async def get_map_key(): return {"code":200,"data":{"key":settings.AMAP_KEY}}
 @router.post("/api/map/hotspots")
 async def get_hotspots(): return {"code":200,"data":HOTSPOTS}

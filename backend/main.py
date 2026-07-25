@@ -1,6 +1,14 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# 加载 .env 文件到环境变量（在 config 导入之前）
+from dotenv import load_dotenv
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path, override=True)
+
+# config 会从 os.environ 读取
 from config import settings
 from api.diagnose import router as dr
 from api.diagnose_ai import router as dar

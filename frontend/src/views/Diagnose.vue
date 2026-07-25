@@ -103,7 +103,7 @@
               <div class="rb-tags">
                 <span class="tag" :class="cropTagClass">{{ result.crop || '--' }}</span>
                 <span v-if="result.type" class="rb-type-tag" :class="result.type === '害虫' ? 'rtt-pest' : 'rtt-disease'">{{ result.type }}</span>
-                <span v-if="severityLevel" class="rb-sev" :class="'rb-sev-' + severityLevel">{{ severityLabel }}</span>
+                <span v-if="confidenceLevel" class="rb-conf-badge" :class="'rb-conf-' + confidenceLevel">{{ confidenceLabel }}</span>
               </div>
               <span class="rb-source">{{ sourceLabel }}</span>
             </div>
@@ -120,7 +120,7 @@
           <div class="trust-panel">
             <div class="trust-item">
               <div class="trust-label">可信度判断</div>
-              <div class="trust-value" :class="'trust-' + severityLevel">{{ confidenceAdvice.title }}</div>
+              <div class="trust-value" :class="'trust-' + confidenceLevel">{{ confidenceAdvice.title }}</div>
             </div>
             <div class="trust-item">
               <div class="trust-label">下一步动作</div>
@@ -148,9 +148,9 @@
                   <div class="cb-crop">{{ c.crop }}</div>
                 </div>
                 <div class="cb-bar-wrap">
-                  <div class="cb-bar" :style="{ width: (c.conf*100).toFixed(0) + '%', background: getCropColor(c.crop) }"></div>
+                  <div class="cb-bar" :style="{ width: (c.confidence*100).toFixed(0) + '%', background: getCropColor(c.crop) }"></div>
                 </div>
-                <span class="cb-pct">{{ (c.conf*100).toFixed(1) }}%</span>
+                <span class="cb-pct">{{ (c.confidence*100).toFixed(1) }}%</span>
               </div>
             </div>
           </div>
@@ -167,8 +167,8 @@
             </div>
             <div class="meta-item">
               <div class="meta-label">影响产量</div>
-              <div class="meta-value" :style="{color: severityLevel === 'high' ? '#dc2626' : severityLevel === 'mid' ? '#e8a317' : '#15803d'}">
-                {{ result.impact || (severityLevel === 'high' ? '减产 20-50%' : severityLevel === 'mid' ? '减产 10-20%' : '减产 <10%') }}
+              <div class="meta-value" :style="{color: confidenceLevel === 'high' ? '#dc2626' : confidenceLevel === 'mid' ? '#e8a317' : '#15803d'}">
+                {{ result.impact || (confidenceLevel === 'high' ? '减产 20-50%' : confidenceLevel === 'mid' ? '减产 10-20%' : '减产 <10%') }}
               </div>
             </div>
           </div>
@@ -312,30 +312,30 @@ const sourceLabel = computed(() => {
   return '后端返回'
 })
 
-// 严重度推断（基于置信度）
-const severityLevel = computed(() => {
+// 置信度等级（仅表示模型对该结果的把握程度，非病害严重程度）
+const confidenceLevel = computed(() => {
   if (!result.value) return null
   const conf = result.value.confidence || 0
   if (conf >= 0.92) return 'high'
   if (conf >= 0.8) return 'mid'
   return 'low'
 })
-const severityLabel = computed(() => {
-  const m = { high: '高可信', mid: '需复核', low: '低可信' }
-  return m[severityLevel.value] || ''
+const confidenceLabel = computed(() => {
+  const m = { high: '置信度高', mid: '置信度中', low: '置信度低' }
+  return m[confidenceLevel.value] || ''
 })
 const confidenceAdvice = computed(() => {
   if (!result.value) return { title: '--', action: '--' }
   if (result.value.source === 'rejected') {
     return { title: '非识别范围', action: '请重新上传清晰的作物叶片、果实或茎秆照片' }
   }
-  if (severityLevel.value === 'high') {
-    return { title: '可作为处置参考', action: '建议结合田间症状和发生时期确认后用药' }
+  if (confidenceLevel.value === 'high') {
+    return { title: '模型可信度高', action: '建议结合田间症状和发生时期确认后用药' }
   }
-  if (severityLevel.value === 'mid') {
-    return { title: '建议人工复核', action: '优先查看候选病害，并补拍病斑正反面照片' }
+  if (confidenceLevel.value === 'mid') {
+    return { title: '模型可信度中等', action: '建议查看候选病害并补拍病斑正反面照片' }
   }
-  return { title: '不可直接下结论', action: '请更换角度或光照重新拍摄后再识别' }
+  return { title: '模型可信度低', action: '请更换角度或光照重新拍摄后再识别' }
 })
 
 function getCropColor(crop) { return colors[crop] || '#888' }
@@ -348,23 +348,19 @@ function setFile(f) {
   selectedFile.value = f; previewUrl.value = URL.createObjectURL(f); result.value = null; candidates.value = []; diagnoseError.value = ''
 }
 
-// 病害候选库：仅用于真实结果的相似病害提示，不再在接口失败时伪造诊断结论
-const diseasePool = PEST_KNOWLEDGE.map((d, index) => ({
-  name: d.name, crop: d.crop, type: d.type, sci: d.sci,
-  season: d.season, spread: d.spread, impact: d.impact,
-  symptoms: d.symptoms, treatment: d.treatment_chemical,
-  conf: Math.max(0.45, +(0.86 - index * 0.008).toFixed(3)),
-}))
-
-function buildCandidates(crop, primaryName) {
-  // 同作物其他病害优先，跨作物常见病害补足 Top3
-  const sameCrop = diseasePool.filter(d => d.crop === crop && d.name !== primaryName)
-  const others = diseasePool.filter(d => d.crop !== crop)
-  const pool = [...sameCrop, ...others]
-  return pool.slice(0, 3).map((d, index) => ({
-    ...d,
-    conf: Math.max(0.05, +(d.conf - index * 0.06).toFixed(3))
-  }))
+// 从后端返回的真实 candidates 中提取 Top3 展示，前端不再伪造候选数据
+function loadCandidatesFromBackend(data, crop, primaryName) {
+  if (data.candidates && data.candidates.length > 1) {
+    // 取前3个（过滤掉健康类）
+    const filtered = data.candidates
+      .filter(c => !c.name.includes('健康') && (c.crop || crop))
+      .slice(0, 3)
+    return filtered.map(c => {
+      const kn = matchKnowledge(getBaseDiseaseName(c.name), crop)
+      return { ...c, crop: crop, ...(kn ? { type: kn.type, sci: kn.sci } : {}) }
+    })
+  }
+  return []
 }
 
 async function submitDiagnose() {
@@ -404,7 +400,7 @@ async function submitDiagnose() {
       class_id: data.class_id,
     }
     resultLatency.value = Math.round(performance.now() - t0)
-    candidates.value = buildCandidates(crop || (kn ? kn.crop : ''), cnName)
+    candidates.value = loadCandidatesFromBackend(data, crop || (kn ? kn.crop : ''), cnName)
   } catch (e) {
     const status = e.response?.status
     const detail = e.response?.data?.detail || e.response?.data?.message
@@ -414,14 +410,17 @@ async function submitDiagnose() {
 }
 
 function applyCandidate(c) {
+  // 候选点击：直接作为新的诊断结果（置信度来自后端模型实际概率）
+  const kn = matchKnowledge(getBaseDiseaseName(c.name), c.crop)
   result.value = {
-    disease: c.name, crop: c.crop, type: c.type, sci: c.sci,
-    season: c.season, spread: c.spread, impact: c.impact,
-    confidence: c.conf, symptoms: c.symptoms, treatment: c.treatment,
-    source: result.value?.source || 'candidate'
+    disease: c.name, crop: c.crop, type: kn?.type || '', sci: kn?.sci || '',
+    season: kn?.season || '', spread: kn?.spread || '', impact: kn?.impact || '',
+    confidence: c.confidence || 0,
+    symptoms: kn?.symptoms || '', treatment: kn?.treatment_chemical || '',
+    source: result.value?.source || 'yolov8'
   }
-  // 重排候选
-  candidates.value = buildCandidates(c.crop, c.name)
+  // 候选列表：从结果中移除选中的项，保持简洁
+  candidates.value = candidates.value.filter(cd => cd.name !== c.name)
 }
 
 function goConsult() {
