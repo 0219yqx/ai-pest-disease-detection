@@ -22,6 +22,13 @@ class Settings:
         "MODEL_PATH",
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "best.pt")
     )
+    # 前后端共用的类别映射（单一来源，勿再在业务代码里硬编码）
+    CLASS_NAMES_PATH: str = os.environ.get(
+        "CLASS_NAMES_PATH",
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "class_names.json")
+    )
+    # 上传图片大小上限（MB）
+    MAX_UPLOAD_MB: int = int(os.environ.get("MAX_UPLOAD_MB", "10"))
     HOST: str = os.environ.get("HOST", "0.0.0.0")
     PORT: int = int(os.environ.get("PORT", "8000"))
 

@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -28,3 +28,6 @@ uploads/*
 
 # Models (large files, track separately)
 *.pth
+
+# 比赛材料（不入库，保留本地）
+.hermes/desktop-attachments/

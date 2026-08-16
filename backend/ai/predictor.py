@@ -1,6 +1,22 @@
-import os, sys, numpy as np
+import os, sys, json, numpy as np
 from pathlib import Path
 from config import settings
+
+def _load_class_names():
+    """从 models/class_names.json 加载类别映射（前后端单一来源）。
+    若文件缺失则退回空映射，推理时以模型原始名（class_N）兜底。"""
+    try:
+        p = Path(settings.CLASS_NAMES_PATH)
+        if p.exists():
+            with open(p, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return {int(k): v for k, v in data.items()}
+    except Exception as e:
+        print(f"[Predictor] 类别映射加载失败: {e}")
+    return {}
+
+# 类别映射（单一来源 models/class_names.json，勿在此硬编码）
+MODEL_CLASSES = _load_class_names()
 
 class Predictor:
     def __init__(self, model_path=None):
@@ -16,7 +32,19 @@ class Predictor:
                 print(f"[Predictor] YOLO加载失败: {e}")
         else:
             print(f"[Predictor] 模型不存在: {mf}")
-    
+
+    def _resolve_name(self, idx):
+        """模型索引 -> 中文名（class_N -> 中文映射）"""
+        model_names = getattr(self._model, "names", None) or {}
+        raw = model_names.get(idx, f"class_{idx}") if isinstance(model_names, dict) else str(idx)
+        if isinstance(raw, str) and raw.startswith("class_"):
+            try:
+                cid = int(raw.replace("class_", ""))
+                return MODEL_CLASSES.get(cid, raw)
+            except ValueError:
+                return raw
+        return raw if isinstance(raw, str) else str(raw)
+
     def predict(self, image_path):
         if self._model is None:
             return {"disease":"模型未加载","confidence":0,"crop":"","symptoms":"","treatment":"请先训练模型","source":"error"}
@@ -33,39 +61,8 @@ class Predictor:
             
             top1_idx = probs.top1
             top1_conf = float(probs.top1conf)
-            name = results[0].names[top1_idx] if results[0].names else ("class_" + str(top1_idx))
+            name = self._resolve_name(top1_idx)
 
-            # 中文类别名映射（class_N → 中文名）
-            MODEL_CLASSES = {
-                0: '樱桃健康', 1: '樱桃白粉病', 2: '樱桃白粉病_严重',
-                3: '玉米健康', 4: '玉米叶斑病_轻', 5: '玉米叶斑病_重', 6: '玉米灰斑病', 7: '玉米锈病_轻', 8: '玉米锈病_重',
-                9: '玉米健康_2',
-                10: '水稻褐斑病_轻', 11: '水稻褐斑病_重', 12: '水稻锈病_轻', 13: '水稻锈病_重', 14: '水稻叶枯病_轻', 15: '水稻叶枯病_重',
-                16: '苹果健康', 17: '苹果赤霉病',
-                18: '葡萄健康', 19: '葡萄黑痘病_轻', 20: '葡萄黑痘病_中', 21: '葡萄黑痘病_重', 22: '葡萄霜霉病_轻', 23: '葡萄霜霉病_重', 24: '葡萄健康_2',
-                25: '柑橘黄龙病_早期', 26: '柑橘黄龙病_严重', 27: '柑橘疮痂病_轻', 28: '柑橘疮痂病_中', 29: '柑橘疮痂病_重',
-                30: '玉米健康_3', 31: '玉米灰斑病_严重', 32: '玉米灰斑病_轻微',
-                33: '草莓健康', 34: '草莓早疫病_轻', 35: '草莓早疫病_重', 36: '草莓晚疫病_轻', 37: '草莓晚疫病_重',
-                38: '番茄健康', 39: '番茄晚疫病_轻', 40: '番茄晚疫病_重', 41: '番茄健康_2', 42: '番茄白粉病_轻', 43: '番茄白粉病_重',
-                44: '番茄细菌病', 45: '番茄健康_3', 46: '番茄早疫病_轻', 47: '番茄早疫病_重',
-                48: '番茄黄化曲叶病毒_早期', 49: '番茄黄化曲叶病毒_严重',
-                50: '黄瓜健康', 51: '黄瓜白粉病', 52: '黄瓜细菌性叶斑病',
-                53: '黄瓜健康_2', 54: '玉米健康_4', 55: '玉米健康_5', 56: '番茄健康_4', 57: '番茄健康_5',
-                58: '番茄黄化曲叶病毒_中期', 59: '番茄黄化曲叶病毒_后期', 60: '未知类别',
-                61: '小麦健康', 62: '小麦条锈病', 63: '小麦叶锈病', 64: '小麦白粉病', 65: '小麦赤霉病', 66: '小麦根腐病', 67: '小麦纹枯病',
-                68: '棉花棉铃虫', 69: '棉花枯萎病', 70: '棉花黄萎病',
-                71: '大豆健康', 72: '大豆根腐病', 73: '大豆蚜虫', 74: '大豆紫斑病',
-                75: '马铃薯早疫病', 76: '马铃薯晚疫病', 77: '马铃薯健康',
-                78: '水稻干尖线虫病', 79: '水稻稻瘟病', 80: '水稻褐斑病_rice', 81: '水稻恶苗病',
-            }
-            # 如果 name 是 class_N 格式，替换为中文名
-            if name.startswith("class_"):
-                try:
-                    cid = int(name.replace("class_", ""))
-                    name = MODEL_CLASSES.get(cid, name)
-                except ValueError:
-                    pass
-            
             # ===== 非农作物图片过滤（四层检测）=====
             # 获取所有类的概率值
             all_probs = probs.data.cpu().numpy() if hasattr(probs.data, 'cpu') else np.array(probs.data)
@@ -98,35 +95,18 @@ class Predictor:
             if top1_conf - top3_avg_conf < 0.2 and top1_conf < 0.5:
                 return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"图片特征不明确，无法确认是否为农作物病虫害","treatment":"请拍摄农作物患病部位特写，确保光线充足、主体清晰","source":"rejected","class_id":-1,"reason":"flat_distribution"}
             
-            # top-5 candidates with class names
-            MODEL_CLASSES = {
-                0: '樱桃健康', 1: '樱桃白粉病', 2: '樱桃白粉病_严重',
-                3: '玉米健康', 4: '玉米叶斑病_轻', 5: '玉米叶斑病_重', 6: '玉米灰斑病', 7: '玉米锈病_轻', 8: '玉米锈病_重',
-                9: '玉米健康_2',
-                10: '水稻褐斑病_轻', 11: '水稻褐斑病_重', 12: '水稻锈病_轻', 13: '水稻锈病_重', 14: '水稻叶枯病_轻', 15: '水稻叶枯病_重',
-                16: '苹果健康', 17: '苹果赤霉病',
-                18: '葡萄健康', 19: '葡萄黑痘病_轻', 20: '葡萄黑痘病_中', 21: '葡萄黑痘病_重', 22: '葡萄霜霉病_轻', 23: '葡萄霜霉病_重', 24: '葡萄健康_2',
-                25: '柑橘黄龙病_早期', 26: '柑橘黄龙病_严重', 27: '柑橘疮痂病_轻', 28: '柑橘疮痂病_中', 29: '柑橘疮痂病_重',
-                30: '玉米健康_3', 31: '玉米灰斑病_严重', 32: '玉米灰斑病_轻微',
-                33: '草莓健康', 34: '草莓早疫病_轻', 35: '草莓早疫病_重', 36: '草莓晚疫病_轻', 37: '草莓晚疫病_重',
-                38: '番茄健康', 39: '番茄晚疫病_轻', 40: '番茄晚疫病_重', 41: '番茄健康_2', 42: '番茄白粉病_轻', 43: '番茄白粉病_重',
-                44: '番茄细菌病', 45: '番茄健康_3', 46: '番茄早疫病_轻', 47: '番茄早疫病_重',
-                48: '番茄黄化曲叶病毒_早期', 49: '番茄黄化曲叶病毒_严重',
-                50: '黄瓜健康', 51: '黄瓜白粉病', 52: '黄瓜细菌性叶斑病',
-                53: '黄瓜健康_2', 54: '玉米健康_4', 55: '玉米健康_5', 56: '番茄健康_4', 57: '番茄健康_5',
-                58: '番茄黄化曲叶病毒_中期', 59: '番茄黄化曲叶病毒_后期', 60: '未知类别',
-                61: '小麦健康', 62: '小麦条锈病', 63: '小麦叶锈病', 64: '小麦白粉病', 65: '小麦赤霉病', 66: '小麦根腐病', 67: '小麦纹枯病',
-                68: '棉花棉铃虫', 69: '棉花枯萎病', 70: '棉花黄萎病',
-                71: '大豆健康', 72: '大豆根腐病', 73: '大豆蚜虫', 74: '大豆紫斑病',
-                75: '马铃薯早疫病', 76: '马铃薯晚疫病', 77: '马铃薯健康',
-                78: '水稻干尖线虫病', 79: '水稻稻瘟病', 80: '水稻褐斑病_rice', 81: '水稻恶苗病',
-            }
             top5_idx = [int(probs.top5[i]) for i in range(min(5, len(probs.top5)))]
             top5_conf = [float(top5conf_list[i]) for i in range(min(5, len(top5conf_list)))]
-            candidates = []
-            for i, cid in enumerate(top5_idx):
-                cn = MODEL_CLASSES.get(cid, results[0].names.get(cid, f"class_{cid}"))
-                candidates.append({"class_id": cid, "name": cn, "confidence": round(top5_conf[i], 4)})
+            # 真实 top5 候选（类别名 + 置信度），供前端展示真实候选病害
+            top5_list = [
+                {"id": idx, "name": self._resolve_name(idx), "conf": round(conf, 4)}
+                for idx, conf in zip(top5_idx, top5_conf)
+            ]
+            # 兼容字段：candidates（class_id/name/confidence）
+            candidates = [
+                {"class_id": cid, "name": self._resolve_name(cid), "confidence": round(conf, 4)}
+                for cid, conf in zip(top5_idx, top5_conf)
+            ]
             
             # 判断作物类型（从类别名中提取）
             crop = ""
@@ -166,6 +146,7 @@ class Predictor:
                 "source": "yolov8",
                 "class_id": int(top1_idx),
                 "top5": top5_conf,
+                "top5_list": top5_list,
                 "candidates": candidates,
             }
                 

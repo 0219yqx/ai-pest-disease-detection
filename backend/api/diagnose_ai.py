@@ -39,8 +39,10 @@ async def diagnose_ai(request: dict):
     # 检查是否配置了真实的DeepSeek Key
     api_key = settings.DEEPSEEK_API_KEY
     if not api_key or api_key == "your-key" or len(api_key) < 30:
-        reply = random.choice(MOCK_REPLIES)
-        return {"code": 200, "data": {"reply": reply, "source": "mock"}}
+        return {"code": 200, "data": {
+            "reply": "老乡您好，AI 问诊服务当前未配置（缺少 DEEPSEEK_API_KEY）。\n\n请在后端环境变量或 .env 中填入有效的 DeepSeek API Key 并重启服务，即可获得针对您问题的精准防治建议。",
+            "source": "not_configured"
+        }}
     
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
