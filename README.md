@@ -93,15 +93,17 @@ npm run dev      # http://localhost:5173 （/api 自动代理到后端 8000）
 ## 训练（重新训练模型）
 
 ```bash
-cd training
 # 1) 按文件名规则把图片重新归位到正确类别（自动清洗 + 生成新 dataset.yaml）
-python fix_dataset_labels.py --dataset D:/你的数据集目录/train --val D:/你的数据集目录/val --out D:/你的数据集目录/cleaned
+#    --name-map 会用仓库现有的 models/class_names.json 为未确证类补中文名
+python training/fix_dataset_labels.py --train D:/你的数据集目录/train --val D:/你的数据集目录/val \
+    --out D:/你的数据集目录/cleaned --name-map models/class_names.json --min-per-class 5 --apply
 
 # 2) 训练（建议 GPU；参数可调）
-python train_yolov8.py --data D:/你的数据集目录/cleaned/dataset.yaml \
-                       --model yolov8s-cls.pt --imgsz 384 --epochs 100 --batch 64
+python training/train_yolov8.py --data D:/你的数据集目录/cleaned/dataset.yaml \
+    --model yolov8s-cls.pt --imgsz 384 --epochs 100 --batch 32 --device 0
 
-# 3) 训练完成后把 best.pt 复制到仓库 models/，并核对 models/class_names.json
+# 3) 训练完成后把 best.pt 复制到仓库 models/，并核对 models/class_names.json 与 dataset.yaml 一致
+#    Windows 一条龙：直接运行 training/train.bat（含激活环境、训练、部署回仓库）
 ```
 
 训练建议（针对标签问题）：

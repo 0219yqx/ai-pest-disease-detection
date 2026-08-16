@@ -8,26 +8,27 @@ fix_dataset_labels.py — 训练数据标签清洗工具（先审计，再按需
 例如 class_4/5（玉米叶斑病）里实际是玉米锈病图片、class_18（葡萄健康）里
 实际是葡萄黑腐病等。本脚本通过 PlantVillage 文件名规则解码图片内容，
 产出逐类审计报告；--apply 时把"已确证错标"的图片复制到正确的类别文件夹，
-并生成新的 dataset.yaml 与 class_names.json。
+合并同作物重复"健康"类，并用旧映射为未确证类补中文名，
+最后生成新的 dataset.yaml 与 class_names.json。
 
 用法
 ----
 # 1) 只审计（不修改任何文件，推荐先跑这个）
 python fix_dataset_labels.py --train D:/data/train --val D:/data/val
 
-# 2) 清洗：把确证错标的图片复制到 --out 下的新分类结构
+# 2) 清洗：确证错标图片归位 + 健康类合并 + 中文名填充
 python fix_dataset_labels.py --train D:/data/train --val D:/data/val \
-       --out D:/data/cleaned --min-per-class 5 --apply
+       --out D:/data/cleaned --name-map models/class_names.json --min-per-class 5 --apply
 
-# 3) 用生成的数据集重训：python train_yolov8.py --data D:/data/cleaned/dataset.yaml ...
+# 3) 用生成的数据集重训：python training/train_yolov8.py --data D:/data/cleaned/dataset.yaml ...
 
 说明
 ----
 - 只移动"确证"的错标（文件名规则与多个类别交叉验证一致），其余图片保持原位，
   并在报告中标出需要人工复核的类别。
-- 健康(HL)类因无法从文件名区分作物，不做跨作物移动。
-- 未确证图片所在的原 class_N 类会保留为占位标签（class_N 字符串），
-  请在生成的 class_names.json 中人工补填中文名后再用于训练。
+- 健康(HL)类无法仅凭文件名区分作物，不做跨作物移动；但同作物重复健康类会合并。
+- 未确证图片所在的原 class_N 类若旧映射有中文名且不冲突，则自动补中文名；
+  否则保留 class_N 占位标签，请在生成的 class_names.json 中人工补填。
 """
 
 import argparse
@@ -91,6 +92,18 @@ LOCATION_PREFIXES = {
     'Crnl', 'Mt.N.V', 'Keller.St', 'Lab', 'Field', 'Leaf', 'PS', 'Day', 'FL',
 }
 
+# 作物清单（用于合并同作物重复健康类）
+CROPS = ['玉米', '番茄', '葡萄', '黄瓜', '樱桃', '草莓', '水稻', '小麦',
+         '苹果', '柑橘', '马铃薯', '棉花', '大豆']
+
+
+def normalize_healthy(label):
+    """把 '玉米健康_2' 这类同作物重复健康类合并为 '玉米健康'"""
+    for crop in CROPS:
+        if label.startswith(crop + '健康'):
+            return crop + '健康'
+    return label
+
 
 def decode_filename(fn):
     """返回 (kind, info)：
@@ -149,8 +162,37 @@ def print_audit(audit_map, title):
         print(f"{cls} (n={total}): " + " | ".join(parts))
 
 
-def clean_split(src_dir, out_dir, cls_of, dry_run=True):
-    """复制清洗后的图片到 out_dir。cls_of: 标签名 -> class_N 目录名"""
+def build_label_plan(train_audit, name_map_path):
+    """返回 (cls_to_label, label_to_folder)：
+    - 确证类：中文名
+    - 未确证类：旧映射中文名（唯一时）或 class_N 占位
+    - 同作物重复健康类合并"""
+    verified = sorted(set(name for _, name in CODE_TABLE.values()))
+    old_map = {}
+    if name_map_path and os.path.exists(name_map_path):
+        with open(name_map_path, encoding='utf-8') as f:
+            old_map = json.load(f)
+
+    final_labels = set(verified)
+    cls_to_label = {}
+    for cls in sorted(train_audit.keys()):
+        label = cls
+        m = re.match(r'^class_(\d+)$', cls)
+        if m and str(int(m.group(1))) in old_map:
+            cn = old_map[str(int(m.group(1)))]
+            if cn and cn not in final_labels:  # 与确证类不冲突才填充
+                label = cn
+        label = normalize_healthy(label)
+        final_labels.add(label)
+        cls_to_label[cls] = label
+
+    final_labels = sorted(final_labels)
+    label_to_folder = {label: f'class_{i}' for i, label in enumerate(final_labels)}
+    return cls_to_label, label_to_folder
+
+
+def clean_split(src_dir, out_dir, cls_to_label, label_to_folder, dry_run=True):
+    """复制清洗后的图片到 out_dir"""
     moved = collections.Counter()
     if not os.path.isdir(src_dir):
         return moved
@@ -163,15 +205,16 @@ def clean_split(src_dir, out_dir, cls_of, dry_run=True):
             src = os.path.join(d, fn)
             if kind == 'pv_ok':
                 crop, name = CODE_TABLE[info]
-                target_cls = cls_of[name]
+                label = normalize_healthy(name)
             else:
-                # 未确证：保留在原类（原 class_N 作为占位标签）
-                target_cls = cls_of.get(cls, cls)
-            tdir = os.path.join(out_dir, target_cls)
+                # 未确证：保留在原类（映射到其规划标签）
+                label = cls_to_label.get(cls, cls)
+            folder = label_to_folder.get(label, label)
+            tdir = os.path.join(out_dir, folder)
             os.makedirs(tdir, exist_ok=True)
             if not dry_run:
                 shutil.copy2(src, os.path.join(tdir, fn))
-            moved[target_cls] += 1
+            moved[folder] += 1
     return moved
 
 
@@ -181,6 +224,7 @@ def main():
     ap.add_argument('--val', default='', help='val 目录（可选）')
     ap.add_argument('--out', default='', help='清洗输出目录（--apply 时必填）')
     ap.add_argument('--min-per-class', type=int, default=5, help='样本少于该数的类别将被剔除')
+    ap.add_argument('--name-map', default='', help='旧类别映射JSON(class编号->中文名)，用于给未确证类自动补中文名（如仓库 models/class_names.json）')
     ap.add_argument('--apply', action='store_true', help='真正执行清洗（默认仅审计）')
     args = ap.parse_args()
 
@@ -207,23 +251,18 @@ def main():
     if not args.out:
         raise SystemExit("--apply 模式下必须提供 --out 输出目录")
 
-    # 3) 标签表：确证类=中文名；未确证类=原 class_N 字符串（占位，需人工补中文）
-    verified = sorted(set(name for _, name in CODE_TABLE.values()))
-    labels = sorted(set(verified + list(train_audit.keys())))
-    cls_of = {}
-    for idx, label in enumerate(labels):
-        cls_of[label] = f'class_{idx}'
+    # 3) 标签规划：确证类=中文名；未确证类=旧映射中文名或 class_N 占位；健康类合并
+    cls_to_label, label_to_folder = build_label_plan(train_audit, args.name_map)
 
     # 4) 清洗（复制到 out）
     out_train = os.path.join(args.out, 'train')
     out_val = os.path.join(args.out, 'val')
-    moved = clean_split(args.train, out_train, cls_of, dry_run=not args.apply)
+    moved = clean_split(args.train, out_train, cls_to_label, label_to_folder, dry_run=not args.apply)
     if args.val:
-        clean_split(args.val, out_val, cls_of, dry_run=not args.apply)
+        clean_split(args.val, out_val, cls_to_label, label_to_folder, dry_run=not args.apply)
 
     # 5) 剔除小样本类 + 生成 dataset.yaml / class_names.json
-    # 注意：文件夹名是 class_{新索引}，标签要用回中文名（或原 class_N 占位名）
-    folder_to_label = {v: k for k, v in cls_of.items()}
+    folder_to_label = {v: k for k, v in label_to_folder.items()}
     keep = {}
     for folder, n in moved.items():
         label = folder_to_label.get(folder, folder)
@@ -247,7 +286,7 @@ def main():
         json.dump({str(k): v for k, v in names.items()}, f, ensure_ascii=False, indent=2)
     print(f"✅ 已生成 {cls_json} —— 请人工核对未确证类的中文名后复制到仓库 models/ 覆盖 class_names.json")
 
-    print("\n下一步：python train_yolov8.py --data " + yaml_path)
+    print("\n下一步：python training/train_yolov8.py --data " + yaml_path)
 
 
 if __name__ == '__main__':
