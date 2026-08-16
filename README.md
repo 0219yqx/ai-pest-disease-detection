@@ -93,23 +93,30 @@ npm run dev      # http://localhost:5173 （/api 自动代理到后端 8000）
 ## 训练（重新训练模型）
 
 ```bash
-# 1) 按文件名规则把图片重新归位到正确类别（自动清洗 + 生成新 dataset.yaml）
-#    --name-map 会用仓库现有的 models/class_names.json 为未确证类补中文名
+# 1) 按文件名规则把图片重新归位到正确类别（生成 66 类清洗数据集）
+#    --name-map 会用仓库现有的 models/class_names.json 为未确证类补中文名；
+#    同作物重复"健康"类自动合并（如 玉米健康_2~_5 -> 玉米健康）
 python training/fix_dataset_labels.py --train D:/你的数据集目录/train --val D:/你的数据集目录/val \
     --out D:/你的数据集目录/cleaned --name-map models/class_names.json --min-per-class 5 --apply
 
-# 2) 训练（建议 GPU；参数可调）
-python training/train_yolov8.py --data D:/你的数据集目录/cleaned/dataset.yaml \
+# 2) 训练（建议 GPU；注意分类任务 --data 传【目录】而非 yaml）
+python training/train_yolov8.py --data D:/你的数据集目录/cleaned \
     --model yolov8s-cls.pt --imgsz 384 --epochs 100 --batch 32 --device 0
 
-# 3) 训练完成后把 best.pt 复制到仓库 models/，并核对 models/class_names.json 与 dataset.yaml 一致
+# 3) 训练完成后把 best.pt 复制到仓库 models/，并核对 models/class_names.json 与数据集类别一致
 #    Windows 一条龙：直接运行 training/train.bat（含激活环境、训练、部署回仓库）
 ```
 
+已按上述流程对 `D:\Projects\YOLOv8_PlantDisease` 执行过一次清洗：
+- 确认 **9017 张（28%）** 错标图片按文件名规则归位到正确类别；
+- 剔除 3 个样本 <5 的垃圾类；同作物重复健康类合并；
+- 最终数据集 **66 类**（train 32051 张 / val 4644 张），输出在 `dataset_cleaned/`；
+- 冒烟验证：yolov8s-cls @384 第 1 轮即 top1 53.6% / top5 90.3%（原模型 64 类训 37 轮仅 86.6%）。
+
 训练建议（针对标签问题）：
 
-1. **先重标注再训练**：用 `fix_dataset_labels.py` 清洗；删除只有 1 张图的类别（如 class_44/45）；
-2. **合并重复"健康"类**：`玉米健康_2~_5`、`番茄健康_2~_5` 等应合并为同一类；
+1. **先重标注再训练**：用 `fix_dataset_labels.py` 清洗；删除只有 1 张图的类别；
+2. **合并重复"健康"类**：工具已自动合并 `玉米健康_2~_5`、`番茄健康_2~_5` 等；
 3. **类别不平衡**：对小样本类使用类别加权或重采样；
 4. **增强**：开启 `degrees`/`shear`/`mixup`（作物叶面旋转很常见）；
 5. **分辨率**：`imgsz` 提到 384 或 448；

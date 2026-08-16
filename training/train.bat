@@ -17,7 +17,8 @@ REM ---- 1. Python 环境（yolo 环境已装 ultralytics+torch；按需修改�
 set "PY=D:\ProgramData\Anaconda3\envs\yolo\python.exe"
 
 REM ---- 2. 训练参数（RTX 4070 8GB 可 batch 32；显存小改 16；想快改 yolov8n-cls 或 imgsz 320）----
-set DATA=D:\Projects\YOLOv8_PlantDisease\dataset_cleaned\dataset.yaml
+REM 注意：分类任务 --data 传数据集【目录】（含 train/ 与 val/），不是 yaml
+set DATA=D:\Projects\YOLOv8_PlantDisease\dataset_cleaned
 set MODEL=yolov8s-cls.pt
 set IMGSZ=384
 set EPOCHS=100

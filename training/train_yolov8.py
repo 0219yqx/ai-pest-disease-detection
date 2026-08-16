@@ -10,14 +10,16 @@ train_yolov8.py — 病虫害分类模型重训练脚本（YOLOv8-cls）
 
 用法
 ----
-python train_yolov8.py --data D:/data/cleaned/dataset.yaml \
-    --model yolov8s-cls.pt --imgsz 384 --epochs 100 --batch 64 --device 0
+python train_yolov8.py --data D:/data/cleaned \
+    --model yolov8s-cls.pt --imgsz 384 --epochs 100 --batch 32 --device 0
 
 说明
 ----
+- YOLOv8 分类训练要求 --data 指向数据集【目录】（内含 train/ 与 val/ 子目录，
+  子目录下的文件夹名即类别名），不是 yaml 文件。
 - 训练前请先用 fix_dataset_labels.py 清洗标签（见 README"已知问题"）。
 - 训练完成后把 output/<name>/weights/best.pt 复制到仓库 models/best.pt，
-  并核对 models/class_names.json 与 dataset.yaml 的类别一一对应。
+  并核对 models/class_names.json 与数据集类别一一对应。
 """
 
 import argparse
@@ -27,19 +29,22 @@ from ultralytics import YOLO
 
 def main():
     ap = argparse.ArgumentParser(description='YOLOv8 病虫害分类训练')
-    ap.add_argument('--data', required=True, help='dataset.yaml 路径')
+    ap.add_argument('--data', required=True, help='数据集【目录】（内含 train/ 与 val/；cls 任务不需要 yaml）')
     ap.add_argument('--model', default='yolov8s-cls.pt', help='预训练权重（n/s/m/l）')
     ap.add_argument('--imgsz', type=int, default=384, help='训练分辨率')
     ap.add_argument('--epochs', type=int, default=100)
-    ap.add_argument('--batch', type=int, default=64)
+    ap.add_argument('--batch', type=int, default=32)
     ap.add_argument('--device', default='0', help="GPU 编号；CPU 用 'cpu'")
     ap.add_argument('--name', default='plant_disease_v2', help='输出目录名')
     ap.add_argument('--project', default='output', help='输出根目录')
     ap.add_argument('--patience', type=int, default=30, help='早停耐心值')
     args = ap.parse_args()
 
-    if not Path(args.data).exists():
-        raise SystemExit(f"dataset.yaml 不存在: {args.data}")
+    data_dir = Path(args.data)
+    if not data_dir.is_dir():
+        raise SystemExit(f"数据集目录不存在: {args.data}（分类任务需传目录而非 yaml）")
+    if not (data_dir / 'train').is_dir() or not (data_dir / 'val').is_dir():
+        raise SystemExit(f"数据集目录需包含 train/ 与 val/ 子目录: {args.data}")
 
     model = YOLO(args.model)
 

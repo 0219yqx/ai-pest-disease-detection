@@ -187,7 +187,8 @@ def build_label_plan(train_audit, name_map_path):
         cls_to_label[cls] = label
 
     final_labels = sorted(final_labels)
-    label_to_folder = {label: f'class_{i}' for i, label in enumerate(final_labels)}
+    # 分类训练(YOLOv8-cls)的类名直接取文件夹名，因此文件夹直接用标签（中文名）命名
+    label_to_folder = {label: label for label in final_labels}
     return cls_to_label, label_to_folder
 
 
@@ -274,6 +275,16 @@ def main():
     names = {}
     for idx, label in enumerate(sorted(keep.keys())):
         names[idx] = label
+
+    # 6) 清理输出目录中被剔除的小样本类文件夹（避免被当成类别参与训练）
+    for split in ('train', 'val'):
+        split_dir = os.path.join(args.out, split)
+        if os.path.isdir(split_dir):
+            for folder in os.listdir(split_dir):
+                if folder not in keep:
+                    shutil.rmtree(os.path.join(split_dir, folder))
+                    print(f"🗑️  已清理小样本类文件夹: {split}/{folder}")
+
     yaml_path = os.path.join(args.out, 'dataset.yaml')
     with open(yaml_path, 'w', encoding='utf-8') as f:
         f.write(f"path: {os.path.abspath(args.out)}\ntrain: train\nval: val\n\nnames:\n")
