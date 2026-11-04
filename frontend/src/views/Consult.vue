@@ -33,6 +33,10 @@
     <!-- 聊天区 -->
     <div class="chat-area card" ref="chatRef">
       <div class="chat-bg"></div>
+      <div v-if="messages.length <= 1 && !loading" class="suggest-block">
+        <p>可以从这几个问题开始</p>
+        <button type="button" v-for="t in suggestLinks" :key="t" class="suggest-link" @click="sendQuick(t)">{{ t }}</button>
+      </div>
       <transition-group name="msg" tag="div" class="chat-flow">
         <div v-for="(msg, i) in messages" :key="i" class="msg-row" :class="msg.role">
           <div v-if="msg.role==='ai'" class="msg-avatar avatar-ai">
@@ -75,7 +79,7 @@
         </button>
       </div>
       <div class="input-hint">
-        <span>💡 提示：输入病虫害名称，例如"稻瘟病防治"、"葡萄霜霉病用药"</span>
+        <span>提示：输入病虫害名称，例如「稻瘟病防治」「葡萄霜霉病用药」</span>
         <span class="kbd">Enter</span>
       </div>
     </div>
@@ -90,6 +94,7 @@ const route = useRoute()
 const inputText = ref(''); const loading = ref(false); const backendOk = ref(false)
 const chatRef = ref(null); const messages = ref([])
 const quickTags = ['稻瘟病防治','水稻褐斑病','小麦赤霉病','玉米叶斑病','棉铃虫防治','番茄晚疫病','葡萄霜霉病','柑橘黄龙病','大豆蚜虫','马铃薯晚疫病']
+const suggestLinks = ['稻瘟病怎么治', '小麦赤霉病用药', '玉米叶斑病防治', '番茄晚疫病怎么处理']
 
 // 会话统计
 const msgCount = computed(() => messages.value.length)
@@ -335,7 +340,7 @@ async function sendMsg() {
 function sendQuick(t) { inputText.value = t; sendMsg() }
 
 onMounted(async () => {
-  addMsg('ai', '老乡您好！👋 我是田安智识·稼护慧眼的植保助手。覆盖 13 种作物 38 种病虫害知识库，您可以直接输入病虫害名称（比如"稻瘟病怎么治"、"葡萄霜霉病用药"），或者从上方标签选择常见问题。我用大白话给您讲清楚，有啥不懂尽管问！')
+  addMsg('ai', '老乡您好。我是田安智识·稼护慧眼的植保助手。覆盖 13 种作物 38 种病虫害知识库，您可以直接输入病虫害名称（比如"稻瘟病怎么治"、"葡萄霜霉病用药"），或者从上方标签选择常见问题。我用大白话给您讲清楚，有啥不懂尽管问！')
   await scrollBottom()
   try { await axios.get('/api/health', { timeout: 3000 }); backendOk.value = true } catch (e) { backendOk.value = false }
   // 接收来自知识图谱的跳转参数，自动发送问诊
@@ -351,19 +356,39 @@ onMounted(async () => {
 </script>
 <style scoped>
 .page-wrapper {
-  width: 100%; padding: 0 28px;
-  display: flex; flex-direction: column; height: calc(100vh - 32px);
+  width: auto;
+  display: flex; flex-direction: column;
+  height: calc(100vh - 112px);
+  min-height: 0;
+  max-height: calc(100vh - 112px);
+  overflow: hidden;
+  box-sizing: border-box;
 }
+.suggest-block { position: relative; padding: 4px 4px 12px; }
+.suggest-block p { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
+.suggest-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--gray-200);
+  padding: 10px 0;
+  font-size: 14px;
+  color: #1F4A34;
+  cursor: pointer;
+}
+.suggest-link:hover { color: #8C4E32; }
 
 .consult-top { margin-bottom: 14px; }
 .ct-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.ct-header h1 { font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; }
+.ct-header h1 { font-size: 24px; font-weight: 800; color: var(--text-primary); margin: 0; }
 .ct-status {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11px; color: var(--text-tertiary);
+  font-size: 12px; color: var(--text-tertiary);
   background: var(--gray-100); padding: 4px 10px; border-radius: 999px;
 }
-.ct-status.online { color: var(--brand-700); background: #dcfce7; }
+.ct-status.online { color: var(--brand-700); background: var(--brand-50); }
 .cs-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--text-tertiary);
 }
@@ -380,10 +405,11 @@ onMounted(async () => {
 }
 .cts-item { display: flex; flex-direction: column; align-items: center; padding: 0 12px; }
 .cts-val { font-size: 14px; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1; }
-.cts-lbl { font-size: 9px; color: var(--text-tertiary); margin-top: 2px; }
+.cts-lbl { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; white-space: nowrap; }
 .cts-divider { width: 1px; height: 18px; background: var(--gray-200); }
 
-.ct-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ct-tags { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.ct-tag { font-size: 14px !important; border-radius: 0 !important; background: transparent !important; border: none !important; border-bottom: 1px solid #C4A574 !important; padding: 2px 0 !important; color: #1F4A34 !important; }
 .ct-tag {
   display: inline-flex; align-items: center; padding: 5px 14px; font-size: 12px; font-weight: 500;
   background: var(--brand-50); color: var(--brand-800);
@@ -391,7 +417,7 @@ onMounted(async () => {
   cursor: pointer; transition: all var(--duration-fast) var(--ease-out);
 }
 .ct-tag:hover {
-  background: var(--brand-700); color: #fff; border-color: var(--brand-700);
+  background: rgba(143,206,154,0.18); color: var(--text-primary); border-color: var(--brand-700);
   transform: translateY(-2px); box-shadow: 0 4px 12px rgba(46,125,50,0.25);
 }
 .ct-tag:active { transform: translateY(0) scale(0.96); }
@@ -406,7 +432,7 @@ onMounted(async () => {
 .chat-bg {
   position: absolute; inset: 0; pointer-events: none; opacity: 0.4;
   background-image: radial-gradient(circle at 15% 20%, rgba(76,175,80,0.04) 0%, transparent 35%),
-                    radial-gradient(circle at 85% 80%, rgba(29,78,216,0.03) 0%, transparent 35%);
+                    radial-gradient(circle at 85% 80%, rgba(143,206,154,0.03) 0%, transparent 35%);
 }
 .chat-flow { display: flex; flex-direction: column; gap: 14px; position: relative; }
 
@@ -422,26 +448,28 @@ onMounted(async () => {
 .msg-avatar {
   width: 34px; height: 34px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; font-size: 11px; font-weight: 700;
+  flex-shrink: 0; font-size: 12px; font-weight: 700;
 }
-.avatar-ai  { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #15803d; }
+.avatar-ai  { background: linear-gradient(135deg, var(--brand-50), var(--brand-200)); color: var(--brand-300); }
 .avatar-user { background: var(--gray-100); color: var(--gray-500); }
 
 .msg-bubble {
-  padding: 12px 16px; border-radius: 14px; font-size: 13px; line-height: 1.7;
+  padding: 12px 16px; border-radius: 14px; font-size: 14px; line-height: 1.7;
   white-space: pre-wrap; word-break: break-word;
   position: relative;
 }
 .msg-bubble.user {
-  background: linear-gradient(135deg, var(--brand-700), var(--brand-600));
-  color: #fff; border-bottom-right-radius: 4px;
-  box-shadow: 0 2px 8px rgba(46,125,50,0.2);
+  background: linear-gradient(160deg, #1b4a30, #143824);
+  color: var(--on-fill);
+  border: 1px solid rgba(183, 224, 196, 0.28);
+  border-bottom-right-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
 }
 .msg-bubble.ai {
-  background: #fff; color: var(--text-primary);
+  background: var(--bg-elev); color: var(--text-primary);
   border: 1px solid var(--gray-200); border-bottom-left-radius: 4px;
 }
-.msg-time { font-size: 10px; color: var(--text-tertiary); margin-top: 4px; text-align: right; }
+.msg-time { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; text-align: right; }
 .msg-bubble.ai .msg-time { text-align: left; }
 
 /* ---- 消息工具栏（复制） ---- */
@@ -452,7 +480,7 @@ onMounted(async () => {
 .msg-tools.visible { opacity: 1; }
 .mt-btn {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px; font-size: 10px; font-weight: 500;
+  padding: 3px 8px; font-size: 12px; font-weight: 500;
   background: var(--gray-50); color: var(--text-tertiary);
   border: 1px solid var(--gray-200); border-radius: 6px;
   cursor: pointer; transition: all var(--duration-fast);
@@ -476,7 +504,7 @@ onMounted(async () => {
 /* ---- 输入区 ---- */
 .input-area { padding-bottom: 16px; }
 .input-wrap {
-  display: flex; gap: 0; background: #fff;
+  display: flex; gap: 0; background: var(--bg-elev);
   border: 1.5px solid var(--gray-200); border-radius: 14px;
   overflow: hidden; transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
   box-shadow: var(--shadow-sm);
@@ -487,13 +515,13 @@ onMounted(async () => {
 }
 .chat-input {
   flex: 1; padding: 12px 16px; border: none; outline: none;
-  font-size: 13px; background: transparent;
+  font-size: 14px; background: transparent;
 }
 .chat-input::placeholder { color: var(--gray-400); }
 
 /* ---- 字数计数 ---- */
 .char-count {
-  font-size: 11px; color: var(--text-tertiary); padding: 0 10px;
+  font-size: 12px; color: var(--text-tertiary); padding: 0 10px;
   font-variant-numeric: tabular-nums; align-self: center;
   transition: color var(--duration-fast);
 }
@@ -514,7 +542,19 @@ onMounted(async () => {
 /* ---- 输入提示 ---- */
 .input-hint {
   display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
   margin-top: 6px; padding: 0 4px;
-  font-size: 11px; color: var(--text-tertiary);
+  font-size: 14px; color: var(--text-secondary);
+}
+@media (max-width: 767px) {
+  .page-wrapper { height: auto; max-height: none; overflow: visible; }
+  .input-hint { flex-wrap: wrap; }
+}
+@media (max-width: 767px) {
+  .ct-header { flex-wrap: wrap; align-items: flex-start; }
+  .ct-header h1 { width: 100%; }
+  .ct-status { white-space: nowrap; }
+  .ct-stats { margin-left: 0; width: 100%; justify-content: space-between; }
+  .msg-row { max-width: 100%; }
 }
 </style>

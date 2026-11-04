@@ -48,7 +48,9 @@ npm run dev      # http://localhost:5173 （/api 自动代理到后端 8000）
 
 > 若后端换端口，用 `VITE_PROXY_TARGET` 覆盖：`VITE_PROXY_TARGET=http://localhost:8080 npm run dev`
 
-生产构建：`npm run build`，产物在 `frontend/dist`。
+生产构建：`npm run build`，产物在 `frontend/dist`。把 `dist` 内全部文件上传到线上 nginx 站点目录（覆盖旧的 `index.html` 与 `assets`）即可更新界面，无需改后端。
+
+界面是半透明米白纸面叠在整页麦田影像上。背景视频来自 [Pexels · Aerial Drone Footage Of A Wheat Field（Egor Kunovsky）](https://www.pexels.com/video/aerial-drone-footage-of-a-wheat-field-3851640/)，取其中约 8 秒远景麦浪。[Pexels License](https://www.pexels.com/license/) 允许商用和剪辑，不要求署名，也不能把未改动的视频单独转售。文件在 `frontend/public/field/`（`wheat.webm`、`wheat.mp4`、`poster.jpg`）。省流和 `prefers-reduced-motion` 只显示静帧。标题字体为自托管的 Noto Serif SC / Noto Sans SC 子集（`frontend/public/fonts/`）。
 
 ## 项目结构
 
