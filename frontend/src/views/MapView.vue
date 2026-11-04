@@ -134,16 +134,16 @@
               <div class="pml-head">
                 <span class="pml-dot" :style="{background: cropColor(p.crop)}"></span>
                 <span class="pml-name">{{ p.name }}</span>
-                <span class="pml-sev" :class="'sev-' + p.severity.charAt(0)">{{ p.severity }}</span>
+                <span class="pml-sev" :class="severityClass(p.severity)">{{ p.severity || '—' }}</span>
               </div>
-              <div class="pml-meta">{{ p.risk_zone }} · {{ p.crop }}</div>
+              <div class="pml-meta">{{ p.risk_zone || '—' }} · {{ p.crop || '—' }}</div>
               <div class="pml-bar-wrap">
-                <div class="pml-bar" :style="{width: p.area_ratio + '%', background: severityGrad(p.severity)}"></div>
-                <span class="pml-num">{{ p.area_desc }}</span>
+                <div class="pml-bar" :style="{width: barWidth(p.area_ratio), background: severityGrad(p.severity)}"></div>
+                <span class="pml-num">{{ p.area_desc || '—' }}</span>
               </div>
               <div class="pml-trend">
-                <span class="delta" :class="p.trend_dir === 'up' ? 'delta-up' : p.trend_dir === 'down' ? 'delta-down' : 'delta-flat'">
-                  {{ p.trend_dir === 'up' ? '↑' : p.trend_dir === 'down' ? '↓' : '→' }} {{ p.trend_text }}
+                <span class="delta" :class="trendDeltaClass(p.trend_dir)">
+                  {{ trendArrow(p.trend_dir) }} {{ p.trend_text || '—' }}
                 </span>
               </div>
             </div>
@@ -291,6 +291,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { PEST_KNOWLEDGE, CROP_COLOR_MAP } from '../data/knowledgeData.js'
+import { normalizeAlerts, normalizeMajorPests, severityInitial } from '../majorPestNormalize.js'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
@@ -366,7 +367,12 @@ const cityData = reactive([
 ])
 
 // ==================== 颜色映射（统一用 CROP_COLOR_MAP） ====================
-const cropColor = (c) => CROP_COLOR_MAP[c] || '#6E8B74'
+const cropColor = (c) => {
+  if (c == null || c === '') return '#6E8B74'
+  if (CROP_COLOR_MAP[c]) return CROP_COLOR_MAP[c]
+  const head = String(c).split(/[/、,，]/)[0].trim()
+  return CROP_COLOR_MAP[head] || '#6E8B74'
+}
 
 // ECharts 用 Canvas 渲染，无法识别 CSS 变量，这里集中维护 hex 色板
 const HEX = {
@@ -382,11 +388,26 @@ const rgba = (hex, a) => {
   return `rgba(${r},${g},${b},${a})`
 }
 
+const severityClass = (s) => {
+  const initial = severityInitial(s)
+  return initial ? 'sev-' + initial : 'sev-unknown'
+}
+
 const severityGrad = (s) => {
-  if (s.startsWith('重')) return 'linear-gradient(90deg, #8C4E32, #A67C3D)'
-  if (s.startsWith('中')) return 'linear-gradient(90deg, #A67C3D, #C4A574)'
+  const text = typeof s === 'string' ? s : ''
+  if (text.startsWith('重')) return 'linear-gradient(90deg, #8C4E32, #A67C3D)'
+  if (text.startsWith('中')) return 'linear-gradient(90deg, #A67C3D, #C4A574)'
   return 'linear-gradient(90deg, #2f6b45, #1F4A34)'
 }
+
+const barWidth = (ratio) => {
+  const n = Number(ratio)
+  if (!Number.isFinite(n) || n <= 0) return '0%'
+  return Math.min(100, n) + '%'
+}
+
+const trendDeltaClass = (dir) => dir === 'up' ? 'delta-up' : dir === 'down' ? 'delta-down' : 'delta-flat'
+const trendArrow = (dir) => dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→'
 
 // ==================== 作物筛选按钮 ====================
 const cropFilterList = computed(() => {
@@ -745,8 +766,8 @@ const loadBackendData = async () => {
       fetch('/api/history/monthly-trend?crop=小麦').then(r => r.json()).catch(() => ({ data: { values: [] } })),
       fetch('/api/history/pest-data').then(r => r.json()).catch(() => ({ data: {} })),
     ])
-    if (alertRes.data?.length) alerts.value = alertRes.data
-    if (pestRes.data?.length) majorPests.value = pestRes.data
+    if (alertRes.data?.length) alerts.value = normalizeAlerts(alertRes.data)
+    if (pestRes.data?.length) majorPests.value = normalizeMajorPests(pestRes.data)
     if (trendRes.data?.values?.length) monthTrend.value = trendRes.data
     const full = weekRes.data || {}
     if (full.weekly_trend_2026) weekTrend.value = full.weekly_trend_2026
