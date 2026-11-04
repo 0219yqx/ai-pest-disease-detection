@@ -16,7 +16,6 @@
       </div>
       <div class="dh-right">
         <div class="dh-clock">
-          <span class="dh-time">{{ currentTime }}</span>
           <span class="dh-date">{{ currentDate }}</span>
         </div>
         <div class="dh-status online">
@@ -26,61 +25,31 @@
     </div>
 
     <!-- ============ 核心 KPI 指标卡 ============ -->
-    <div class="kpi-row animate-fade-in">
-      <div class="kpi-card kpi-red card-ribbon">
-        <div class="kpi-icon-wrap"><span class="kpi-icon">&#9888;</span></div>
-        <div class="kpi-body">
-          <div class="kpi-val">{{ highCount }}</div>
-          <div class="kpi-label">高风险区县</div>
-        </div>
-        <div class="sparkline" aria-hidden="true">
-          <span class="sl-bar" v-for="(h,i) in [40,55,48,65,72,60,highCount*12]" :key="i" :class="{peak: h>=70}" :style="{height: h+'%'}"></span>
-        </div>
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-val" v-count>{{ highCount }}</div>
+        <div class="kpi-label">高风险区县</div>
         <div class="kpi-trend up">▲ {{ highPct }}%</div>
       </div>
-      <div class="kpi-card kpi-amber card-ribbon" style="animation-delay:60ms">
-        <div class="kpi-icon-wrap"><span class="kpi-icon">&#9673;</span></div>
-        <div class="kpi-body">
-          <div class="kpi-val">{{ midCount }}</div>
-          <div class="kpi-label">中风险区县</div>
-        </div>
-        <div class="sparkline" aria-hidden="true">
-          <span class="sl-bar" v-for="(h,i) in [50,45,52,48,40,44,midCount*12]" :key="i" :class="{peak: h>=52}" :style="{height: h+'%'}"></span>
-        </div>
+      <div class="kpi-card">
+        <div class="kpi-val" v-count>{{ midCount }}</div>
+        <div class="kpi-label">中风险区县</div>
         <div class="kpi-trend down">▼ {{ midPct }}%</div>
       </div>
-      <div class="kpi-card kpi-green card-ribbon" style="animation-delay:120ms">
-        <div class="kpi-icon-wrap"><span class="kpi-icon">&#10003;</span></div>
-        <div class="kpi-body">
-          <div class="kpi-val">{{ lowCount }}</div>
-          <div class="kpi-label">低风险区县</div>
-        </div>
-        <div class="sparkline" aria-hidden="true">
-          <span class="sl-bar" v-for="(h,i) in [30,35,28,32,38,34,lowCount*12]" :key="i" :style="{height: h+'%'}"></span>
-        </div>
+      <div class="kpi-card">
+        <div class="kpi-val" v-count>{{ lowCount }}</div>
+        <div class="kpi-label">低风险区县</div>
         <div class="kpi-trend steady">→ 持平</div>
       </div>
-      <div class="kpi-card kpi-blue card-ribbon" style="animation-delay:180ms">
-        <div class="kpi-icon-wrap"><span class="kpi-icon">&#9733;</span></div>
-        <div class="kpi-body">
-          <div class="kpi-val">{{ totalArea }}</div>
-          <div class="kpi-label">监测面积（万亩）</div>
-        </div>
-        <div class="sparkline" aria-hidden="true">
-          <span class="sl-bar" v-for="(h,i) in [55,60,58,65,70,72,75]" :key="i" :class="{peak: h>=75}" :style="{height: h+'%'}"></span>
-        </div>
+      <div class="kpi-card">
+        <div class="kpi-val" v-count>{{ totalArea }}</div>
+        <div class="kpi-label">监测面积（万亩）</div>
         <div class="kpi-trend up">▲ +8%</div>
       </div>
-      <div class="kpi-card kpi-teal card-ribbon" style="animation-delay:240ms">
-        <div class="kpi-icon-wrap"><span class="kpi-icon">&#9883;</span></div>
-        <div class="kpi-body">
-          <div class="kpi-val">{{ majorPests.length || fallbackMajorPests.length }}</div>
-          <div class="kpi-label">重大病虫害</div>
-        </div>
-        <div class="sparkline" aria-hidden="true">
-          <span class="sl-bar" v-for="(h,i) in [20,35,28,40,50,55,48]" :key="i" :class="{peak: h>=55}" :style="{height: h+'%'}"></span>
-        </div>
-        <div class="kpi-trend">全国农技中心数据</div>
+      <div class="kpi-card">
+        <div class="kpi-val">{{ majorPests.length || fallbackMajorPests.length }}</div>
+        <div class="kpi-label">重大病虫害</div>
+        <div class="kpi-trend">全国农技中心</div>
       </div>
     </div>
 
@@ -89,7 +58,7 @@
       <!-- 左侧：河南地图 -->
       <div class="map-panel card animate-fade-in" style="animation-delay:100ms">
         <div class="panel-header">
-          <span class="panel-title">🌍 河南省病情热力地图</span>
+          <span class="panel-title">河南省病情热力地图</span>
           <div class="panel-tools">
             <div class="map-legend-inline">
               <span class="mli-item"><span class="mli-dot" style="background:var(--color-cotton)"></span>高风险</span>
@@ -125,7 +94,7 @@
         <!-- 实时预警 -->
         <div class="card sp-card animate-fade-in" style="animation-delay:160ms">
           <div class="panel-header">
-            <span class="panel-title">⚠ 实时预警</span>
+            <span class="panel-title">实时预警</span>
             <span class="panel-badge badge-red">{{ displayAlerts.length }} 条</span>
           </div>
           <div class="alert-list">
@@ -157,7 +126,7 @@
         <!-- 重大病虫害列表 -->
         <div class="card sp-card animate-fade-in" style="animation-delay:220ms">
           <div class="panel-header">
-            <span class="panel-title">📊 重大病虫害概览</span>
+            <span class="panel-title">重大病虫害概览</span>
             <span class="panel-badge">全国农技中心</span>
           </div>
           <div class="pest-mini-list">
@@ -165,16 +134,16 @@
               <div class="pml-head">
                 <span class="pml-dot" :style="{background: cropColor(p.crop)}"></span>
                 <span class="pml-name">{{ p.name }}</span>
-                <span class="pml-sev" :class="'sev-' + p.severity.charAt(0)">{{ p.severity }}</span>
+                <span class="pml-sev" :class="severityClass(p.severity)">{{ p.severity || '—' }}</span>
               </div>
-              <div class="pml-meta">{{ p.risk_zone }} · {{ p.crop }}</div>
+              <div class="pml-meta">{{ p.risk_zone || '—' }} · {{ p.crop || '—' }}</div>
               <div class="pml-bar-wrap">
-                <div class="pml-bar" :style="{width: p.area_ratio + '%', background: severityGrad(p.severity)}"></div>
-                <span class="pml-num">{{ p.area_desc }}</span>
+                <div class="pml-bar" :style="{width: barWidth(p.area_ratio), background: severityGrad(p.severity)}"></div>
+                <span class="pml-num">{{ p.area_desc || '—' }}</span>
               </div>
               <div class="pml-trend">
-                <span class="delta" :class="p.trend_dir === 'up' ? 'delta-up' : p.trend_dir === 'down' ? 'delta-down' : 'delta-flat'">
-                  {{ p.trend_dir === 'up' ? '↑' : p.trend_dir === 'down' ? '↓' : '→' }} {{ p.trend_text }}
+                <span class="delta" :class="trendDeltaClass(p.trend_dir)">
+                  {{ trendArrow(p.trend_dir) }} {{ p.trend_text || '—' }}
                 </span>
               </div>
             </div>
@@ -188,7 +157,7 @@
       <!-- 月度趋势 -->
       <div class="card animate-fade-in" style="animation-delay:300ms">
         <div class="panel-header">
-          <span class="panel-title">📈 月度发生趋势</span>
+          <span class="panel-title">月度发生趋势</span>
           <div class="trend-crop-tabs">
             <button
               v-for="t in trendCrops"
@@ -219,7 +188,7 @@
       <!-- 周度监测 -->
       <div class="card animate-fade-in" style="animation-delay:360ms">
         <div class="panel-header">
-          <span class="panel-title">📉 周度监测趋势（4-8月）</span>
+          <span class="panel-title">周度监测趋势（4-8月）</span>
         </div>
         <v-chart :option="weeklyTrendOpt" style="height:220px;width:100%" autoresize />
         <div class="workflow-strip">
@@ -241,7 +210,7 @@
       <!-- 病虫害分布饼图 -->
       <div class="card animate-fade-in" style="animation-delay:420ms">
         <div class="panel-header">
-          <span class="panel-title">📊 病虫害类型分布</span>
+          <span class="panel-title">病虫害类型分布</span>
         </div>
         <v-chart :option="pestPieOpt" style="height:220px;width:100%" autoresize />
         <div class="workflow-strip">
@@ -322,6 +291,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { PEST_KNOWLEDGE, CROP_COLOR_MAP } from '../data/knowledgeData.js'
+import { normalizeAlerts, normalizeMajorPests, severityInitial } from '../majorPestNormalize.js'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
@@ -397,14 +367,19 @@ const cityData = reactive([
 ])
 
 // ==================== 颜色映射（统一用 CROP_COLOR_MAP） ====================
-const cropColor = (c) => CROP_COLOR_MAP[c] || '#6b7280'
+const cropColor = (c) => {
+  if (c == null || c === '') return '#6E8B74'
+  if (CROP_COLOR_MAP[c]) return CROP_COLOR_MAP[c]
+  const head = String(c).split(/[/、,，]/)[0].trim()
+  return CROP_COLOR_MAP[head] || '#6E8B74'
+}
 
 // ECharts 用 Canvas 渲染，无法识别 CSS 变量，这里集中维护 hex 色板
 const HEX = {
-  rice:   '#2e7d32', wheat: '#e8a317', corn: '#1976d2', cotton: '#c62828',
-  brand:  '#4caf50', brand700: '#388e3c', brand200: '#a5d6a7',
-  text3:  '#9ca3b4', gray100: '#f1f3f7', gray200: '#e5e8ef',
-  danger: '#ef4444', warn: '#f59e0b', success: '#22c55e',
+  rice:   '#1F4A34', wheat: '#A67C3D', corn: '#3E6B52', cotton: '#A67C3D',
+  brand:  '#1F4A34', brand700: '#d7f0df', brand200: 'rgba(143,206,154,0.35)',
+  text3:  '#6E6256', gray100: 'rgba(255,255,255,0.06)', gray200: '#E0D6C8',
+  danger: '#A67C3D', warn: '#A67C3D', success: '#1F4A34',
 }
 // hex + alpha → rgba 字符串（用于渐变填充）
 const rgba = (hex, a) => {
@@ -413,18 +388,33 @@ const rgba = (hex, a) => {
   return `rgba(${r},${g},${b},${a})`
 }
 
-const severityGrad = (s) => {
-  if (s.startsWith('重')) return 'linear-gradient(90deg, var(--color-cotton), #ef4444)'
-  if (s.startsWith('中')) return 'linear-gradient(90deg, var(--color-wheat), #f59e0b)'
-  return 'linear-gradient(90deg, var(--color-rice), #22c55e)'
+const severityClass = (s) => {
+  const initial = severityInitial(s)
+  return initial ? 'sev-' + initial : 'sev-unknown'
 }
+
+const severityGrad = (s) => {
+  const text = typeof s === 'string' ? s : ''
+  if (text.startsWith('重')) return 'linear-gradient(90deg, #8C4E32, #A67C3D)'
+  if (text.startsWith('中')) return 'linear-gradient(90deg, #A67C3D, #C4A574)'
+  return 'linear-gradient(90deg, #2f6b45, #1F4A34)'
+}
+
+const barWidth = (ratio) => {
+  const n = Number(ratio)
+  if (!Number.isFinite(n) || n <= 0) return '0%'
+  return Math.min(100, n) + '%'
+}
+
+const trendDeltaClass = (dir) => dir === 'up' ? 'delta-up' : dir === 'down' ? 'delta-down' : 'delta-flat'
+const trendArrow = (dir) => dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→'
 
 // ==================== 作物筛选按钮 ====================
 const cropFilterList = computed(() => {
   const crops = [...new Set(PEST_KNOWLEDGE.map(p => p.crop))].sort()
   return [
-    { key: 'all', label: '全部作物', color: '#6b7280' },
-    ...crops.map(c => ({ key: c, label: c, color: CROP_COLOR_MAP[c] || '#888' })),
+    { key: 'all', label: '全部作物', color: '#6E8B74' },
+    ...crops.map(c => ({ key: c, label: c, color: CROP_COLOR_MAP[c] || '#6E8B74' })),
   ]
 })
 
@@ -528,17 +518,21 @@ const monthlyTrendOpt = computed(() => {
   const maxVal = Math.max(...vals, 10)
   const curMonth = new Date().getMonth() // 0-indexed
   return {
+    animation: true,
+    animationDuration: 1000,
+    animationEasing: 'cubicOut',
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(255,255,255,0.97)',
+      backgroundColor: '#F7F3EB',
       borderColor: HEX.gray200, borderWidth: 1,
       borderRadius: 10,
-      textStyle: { color:'#111827', fontSize:12 },
+      textStyle: { color:'#2A2118', fontSize:12 },
       padding: [10, 14],
       extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.08);',
       formatter: (params) => {
         const v = params[0].value
-        const lvl = v >= 50 ? '🔴 高发期' : v >= 20 ? '🟡 中发期' : '🟢 低发期'
+        const lvl = v >= 50 ? '高发期' : v >= 20 ? '中发期' : '低发期'
         return `<b>${params[0].axisValue}</b><br/>发生率：${v}%  ${lvl}`
       },
     },
@@ -547,12 +541,12 @@ const monthlyTrendOpt = computed(() => {
       type:'category',
       data: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
       axisLine:{show:false}, axisTick:{show:false},
-      axisLabel:{color: HEX.text3, fontSize:10},
+      axisLabel:{color: HEX.text3, fontSize: 12},
     },
     yAxis: {
       type:'value', max: Math.ceil(maxVal/10)*10 + 10,
-      splitLine:{lineStyle:{color:'#f3f4f6', type:'dashed'}},
-      axisLabel:{color: HEX.text3, fontSize:10},
+      splitLine:{lineStyle:{color:'#EFE8DC', type:'dashed'}},
+      axisLabel:{color: HEX.text3, fontSize: 12},
     },
     series: [{
       type:'bar',
@@ -568,7 +562,7 @@ const monthlyTrendOpt = computed(() => {
         symbol: 'none',
         lineStyle: { color: HEX.brand, type: 'dashed', width: 1.5 },
         data: [{ xAxis: curMonth }],
-        label: { show: true, formatter: '当月', color: HEX.brand700, fontSize: 10, position: 'start' },
+        label: { show: true, formatter: '当月', color: HEX.brand700, fontSize: 12, position: 'start' },
       },
     }],
   }
@@ -587,23 +581,27 @@ const weeklyTrendOpt = computed(() => {
     return {
       name, type:'line', smooth:true, symbol:'circle', symbolSize:5, data,
       lineStyle:{width:2.5, color:c},
-      itemStyle:{color:c, borderWidth:2, borderColor:'#fff'},
+      itemStyle:{color:c, borderWidth:2, borderColor:'#F4EFE6'},
       areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,
         colorStops:[{offset:0,color: rgba(c,0.22)}, {offset:1,color:'rgba(0,0,0,0)'}]}},
     }
   }
   return {
+    animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    animationDuration: 1100,
+    animationEasing: 'cubicOut',
+    backgroundColor: 'transparent',
     tooltip: {
       trigger:'axis',
-      backgroundColor:'rgba(255,255,255,0.97)',
+      backgroundColor:'#F7F3EB',
       borderColor: HEX.gray200, borderWidth:1, borderRadius:10,
-      textStyle:{color:'#111827', fontSize:12},
+      textStyle:{color:'#2A2118', fontSize:12},
       padding:[10,14],
       extraCssText:'box-shadow: 0 4px 12px rgba(0,0,0,0.08);',
     },
     legend: {
       data: crops, bottom:0, icon:'roundRect', itemWidth:14, itemHeight:6,
-      textStyle:{color: HEX.text3, fontSize:10},
+      textStyle:{color: HEX.text3, fontSize: 12},
       itemGap:16,
     },
     grid: { left:36, right:14, top:16, bottom:34 },
@@ -611,14 +609,14 @@ const weeklyTrendOpt = computed(() => {
       type:'category',
       data: ['第16周','第18周','第20周','第22周','第24周','第26周','第28周','第30周','第32周','第34周'],
       axisLine:{show:false}, axisTick:{show:false},
-      axisLabel:{color: HEX.text3, fontSize:9.5},
+      axisLabel:{color: HEX.text3, fontSize: 12},
       boundaryGap: false,
     },
     yAxis: {
       type:'value', name:'起',
-      nameTextStyle:{color: HEX.text3, fontSize:10},
-      splitLine:{lineStyle:{color:'#f3f4f6', type:'dashed'}},
-      axisLabel:{color: HEX.text3, fontSize:10},
+      nameTextStyle:{color: HEX.text3, fontSize: 12},
+      splitLine:{lineStyle:{color:'#EFE8DC', type:'dashed'}},
+      axisLabel:{color: HEX.text3, fontSize: 12},
     },
     series: crops.map(doSeries),
   }
@@ -629,8 +627,8 @@ const pestPieData = [
   {value:22, name:'鳞翅目害虫', itemStyle:{color: HEX.wheat}},
   {value:15, name:'刺吸式害虫', itemStyle:{color: HEX.corn}},
   {value:12, name:'细菌性病害', itemStyle:{color: HEX.rice}},
-  {value:6,  name:'病毒性病害', itemStyle:{color:'#7c3aed'}},
-  {value:3,  name:'线虫病害',   itemStyle:{color:'#0f766e'}},
+  {value:6,  name:'病毒性病害', itemStyle:{color:'#C4A574'}},
+  {value:3,  name:'线虫病害',   itemStyle:{color:'#2F6A48'}},
 ].sort((a,b) => b.value - a.value)
 
 const typeWorkflow = computed(() => {
@@ -651,11 +649,15 @@ const typeWorkflow = computed(() => {
 })
 
 const pestPieOpt = {
+  animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  animationDuration: 1100,
+  animationEasing: 'cubicOut',
+  backgroundColor: 'transparent',
   tooltip: {
     trigger:'item',
-    backgroundColor:'rgba(255,255,255,0.97)',
+    backgroundColor:'#F7F3EB',
     borderColor: HEX.gray200, borderWidth:1, borderRadius:10,
-    textStyle:{color:'#111827', fontSize:12},
+    textStyle:{color:'#2A2118', fontSize:12},
     formatter: (p) => `${p.marker} ${p.name}：${p.value}%`,
   },
   legend: {
@@ -663,7 +665,7 @@ const pestPieOpt = {
     orient: 'vertical',
     right: 6, top: 'center',
     itemWidth: 10, itemHeight: 10, itemGap: 8,
-    textStyle: { color: HEX.text3, fontSize: 10 },
+    textStyle: { color: HEX.text3, fontSize: 12 },
     formatter: (name) => {
       const item = pestPieData.find(d => d.name === name)
       return `${name}  ${item ? item.value : 0}%`
@@ -673,7 +675,7 @@ const pestPieOpt = {
     type:'pie',
     radius:['42%','70%'],
     center:['32%','50%'],
-    itemStyle:{borderRadius:6, borderColor:'#fff', borderWidth:2},
+    itemStyle:{borderRadius:6, borderColor:'#F4EFE6', borderWidth:2},
     label: { show: false },
     labelLine: { show: false },
     emphasis: {
@@ -688,7 +690,7 @@ const pestPieOpt = {
 
 // 高德地图标记加载（单独提取为函数，方便降级复用）
 function loadMapMarkers(map) {
-  const sevConf = { '高': { bg:'#dc2626', size:38, pulse:true }, '中': { bg:'#e8a317', size:30, pulse:false }, '低': { bg:'#16a34a', size:24, pulse:false } }
+  const sevConf = { '高': { bg:'#A67C3D', size:38, pulse:true }, '中': { bg:'#C4A574', size:30, pulse:false }, '低': { bg:'#1F4A34', size:24, pulse:false } }
   const markers = []
   cityData.forEach(c => {
     const pos = cityPositions[c.name]
@@ -710,17 +712,17 @@ function loadMapMarkers(map) {
         const sevColor = conf.bg
         try {
           const info = new AMap.InfoWindow({
-            content: '<div style="padding:14px 16px;min-width:220px;border-radius:12px;font-family:system-ui;">' +
+            content: '<div style="padding:14px 16px;min-width:220px;border-radius:2px;background:#F7F3EB;font-family:system-ui;">' +
               '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
               '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + sevColor + ';box-shadow:0 0 6px ' + sevColor + '55;"></span>' +
-              '<span style="font-size:15px;font-weight:700;color:#111827;">' + c.name + '</span>' +
-              '<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:' + sevColor + '18;color:' + sevColor + ';font-weight:600;">' + c.severity + '风险</span>' +
+              '<span style="font-size:15px;font-weight:700;color:#2A2118;">' + c.name + '</span>' +
+              '<span style="font-size:12px;padding:2px 8px;border-radius:999px;background:' + sevColor + '18;color:' + sevColor + ';font-weight:600;">' + c.severity + '风险</span>' +
               '</div>' +
               '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">' +
-              '<div style="padding:8px 10px;background:#f8f9fb;border-radius:8px;"><div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">主要病虫害</div><div style="font-size:12px;font-weight:600;color:#111827;">' + c.pest + '</div></div>' +
-              '<div style="padding:8px 10px;background:#f8f9fb;border-radius:8px;"><div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">发生面积</div><div style="font-size:12px;font-weight:600;color:#111827;">' + c.area + ' 万亩</div></div>' +
-              '<div style="padding:8px 10px;background:#f8f9fb;border-radius:8px;"><div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">所属作物</div><div style="font-size:12px;font-weight:600;color:#111827;">' + c.crop + '</div></div>' +
-              '<div style="padding:8px 10px;background:#f8f9fb;border-radius:8px;"><div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">监测频次</div><div style="font-size:12px;font-weight:600;color:#111827;">' + c.freq + ' 次/周</div></div>' +
+              '<div style="padding:8px 10px;background:#EFE8DC;border-radius:2px;"><div style="font-size:12px;color:#5E5348;margin-bottom:2px;">主要病虫害</div><div style="font-size:14px;font-weight:600;color:#2A2118;">' + c.pest + '</div></div>' +
+              '<div style="padding:8px 10px;background:#EFE8DC;border-radius:2px;"><div style="font-size:12px;color:#5E5348;margin-bottom:2px;">发生面积</div><div style="font-size:14px;font-weight:600;color:#2A2118;">' + c.area + ' 万亩</div></div>' +
+              '<div style="padding:8px 10px;background:#EFE8DC;border-radius:2px;"><div style="font-size:12px;color:#5E5348;margin-bottom:2px;">所属作物</div><div style="font-size:14px;font-weight:600;color:#2A2118;">' + c.crop + '</div></div>' +
+              '<div style="padding:8px 10px;background:#EFE8DC;border-radius:2px;"><div style="font-size:12px;color:#5E5348;margin-bottom:2px;">监测频次</div><div style="font-size:14px;font-weight:600;color:#2A2118;">' + c.freq + ' 次/周</div></div>' +
               '</div></div>',
             offset: new AMap.Pixel(0, -10),
           })
@@ -731,8 +733,21 @@ function loadMapMarkers(map) {
       map.add(marker)
     } catch(e) { console.warn('Marker error for', c.name, e) }
   })
-  if (markers.length) map.setFitView(markers, false, [60, 60, 60, 60])
   window.hermesMap = map
+}
+
+function frameHenan(map) {
+  try {
+    const width = map.getSize ? map.getSize().width : 1200
+    if (width < 720) {
+      map.setZoomAndCenter(8.2, [113.72, 33.8], true)
+      return
+    }
+    const bounds = new AMap.Bounds([110.35, 31.23], [116.65, 36.37])
+    map.setBounds(bounds, true, [16, 16, 16, 16])
+  } catch (e) {
+    map.setZoomAndCenter(7.2, [113.65, 33.85], true)
+  }
 }
 
 const onMapClick = (params) => {
@@ -751,8 +766,8 @@ const loadBackendData = async () => {
       fetch('/api/history/monthly-trend?crop=小麦').then(r => r.json()).catch(() => ({ data: { values: [] } })),
       fetch('/api/history/pest-data').then(r => r.json()).catch(() => ({ data: {} })),
     ])
-    if (alertRes.data?.length) alerts.value = alertRes.data
-    if (pestRes.data?.length) majorPests.value = pestRes.data
+    if (alertRes.data?.length) alerts.value = normalizeAlerts(alertRes.data)
+    if (pestRes.data?.length) majorPests.value = normalizeMajorPests(pestRes.data)
     if (trendRes.data?.values?.length) monthTrend.value = trendRes.data
     const full = weekRes.data || {}
     if (full.weekly_trend_2026) weekTrend.value = full.weekly_trend_2026
@@ -784,7 +799,7 @@ const renderFallbackMap = () => {
     ((lng - minLng) / (maxLng - minLng)) * (W - 60) + 30,
     H - 30 - ((lat - minLat) / (maxLat - minLat)) * (H - 60),
   ]
-  const sevConf = { '高': '#dc2626', '中': '#e8a317', '低': '#16a34a' }
+  const sevConf = { '高': '#A67C3D', '中': '#C4A574', '低': '#1F4A34' }
   const sizeConf = { '高': 22, '中': 17, '低': 13 }
   let dots = ''
   cityData.forEach(c => {
@@ -796,28 +811,28 @@ const renderFallbackMap = () => {
     const pulse = c.severity === '高' ? `<circle cx="${x}" cy="${y}" r="${r+6}" fill="${color}" opacity="0.18"><animate attributeName="r" values="${r+4};${r+12};${r+4}" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.32;0;0.32" dur="2.2s" repeatCount="indefinite"/></circle>` : ''
     dots += `${pulse}
       <g class="fb-dot" data-city="${c.name}" style="cursor:pointer">
-        <circle cx="${x}" cy="${y}" r="${r}" fill="${color}" stroke="#fff" stroke-width="2.5" filter="drop-shadow(0 2px 4px ${color}88)"/>
-        <text x="${x}" y="${y+4}" text-anchor="middle" fill="#fff" font-size="${r>=20?11:9}" font-weight="700">${c.freq}</text>
-        <text x="${x}" y="${y-r-5}" text-anchor="middle" fill="#374151" font-size="10" font-weight="600">${c.name.replace('市','')}</text>
+        <circle cx="${x}" cy="${y}" r="${r}" fill="${color}" stroke="#F4EFE6" stroke-width="2.5" filter="drop-shadow(0 2px 4px ${color}88)"/>
+        <text x="${x}" y="${y+4}" text-anchor="middle" fill="#F6F1E6" font-size="12" font-weight="700">${c.freq}</text>
+        <text x="${x}" y="${y-r-6}" text-anchor="middle" fill="#F6F1E6" font-size="12" font-weight="600">${c.name.replace('市','')}</text>
       </g>`
   })
   amapContainer.value.innerHTML = `
-    <div style="position:relative;width:100%;height:520px;background:linear-gradient(135deg,#e8f1e0 0%,#dceadf 50%,#e8e9d8 100%);border-radius:12px;overflow:hidden;">
-      <div style="position:absolute;top:12px;left:14px;font-size:11px;color:#6b7280;background:rgba(255,255,255,0.75);padding:4px 10px;border-radius:6px;z-index:2;">📍 河南省病情分布示意图（离线模式）</div>
+    <div style="position:relative;width:100%;height:520px;background:linear-gradient(160deg,#07160f 0%,#0d2818 55%,#143222 100%);border-radius:12px;overflow:hidden;">
+      <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#5E5348;background:rgba(6,22,14,0.72);padding:4px 10px;border-radius:6px;z-index:2;">河南省病情分布示意图（离线模式）</div>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:100%;" preserveAspectRatio="xMidYMid meet">
         <defs>
           <linearGradient id="prov" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#cfe3c4"/><stop offset="100%" stop-color="#bcd5b0"/>
+            <stop offset="0%" stop-color="#1c4a32"/><stop offset="100%" stop-color="#0e3324"/>
           </linearGradient>
         </defs>
         <path d="M170,80 L260,55 L380,62 L470,90 L560,85 L640,130 L700,200 L680,290 L720,360 L660,430 L540,470 L420,455 L300,475 L210,420 L130,350 L120,260 L90,170 Z"
-          fill="url(#prov)" stroke="#7ba66c" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
+          fill="url(#prov)" stroke="#1F4A34" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
         ${dots}
       </svg>
-      <div style="position:absolute;bottom:12px;right:14px;display:flex;gap:12px;font-size:11px;color:#6b7280;background:rgba(255,255,255,0.75);padding:6px 12px;border-radius:6px;">
-        <span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#dc2626;"></span>高</span>
-        <span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#e8a317;"></span>中</span>
-        <span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#16a34a;"></span>低</span>
+      <div style="position:absolute;bottom:12px;right:14px;display:flex;gap:12px;font-size:12px;color:#5E5348;background:rgba(6,22,14,0.72);padding:6px 12px;border-radius:6px;">
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#A67C3D;"></span>高</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#C4A574;"></span>中</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#1F4A34;"></span>低</span>
       </div>
     </div>`
   // 简易点击交互
@@ -841,10 +856,17 @@ onMounted(async () => {
       const map = new AMap.Map(amapContainer.value, {
         zoom: 7.5,
         center: [113.5, 33.8],
-        
+        mapStyle: 'amap://styles/whitesmoke',
+        viewMode: '2D',
+      })
+      map.on('complete', () => {
+        try { map.setMapStyle('amap://styles/whitesmoke') } catch (err) { /* 使用默认底图 */ }
       })
       // 添加城市标记
       loadMapMarkers(map)
+      const place = () => frameHenan(map)
+      map.on('complete', place)
+      setTimeout(place, 250)
       mapLoading.value = false
       return
     }
@@ -859,73 +881,62 @@ onMounted(async () => {
 
 <style scoped>
 /* ============ 页面容器 ============ */
-.map-page { gap: 12px; padding-bottom: 24px; }
+.map-page { display: flex; flex-direction: column; gap: 16px; }
 
 /* ============ 顶部仪表盘头部 ============ */
 .dashboard-header {
-  display: flex; align-items: center; justify-content: space-between;
-  background: linear-gradient(135deg, #1b3a1b 0%, #2d5a2d 40%, #365314 100%);
-  border-radius: var(--radius-xl); padding: 18px 24px; color: #fff;
-  box-shadow: 0 4px 20px rgba(22,101,52,0.15);
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--gray-200);
+  border-radius: 0; padding: 4px 0 16px; color: var(--text-primary);
+  box-shadow: none;
 }
-.dh-left { display:flex; align-items:center; gap:14px; }
-.dh-icon {
-  width:44px; height:44px; border-radius:12px;
-  background: rgba(255,255,255,0.15); backdrop-filter:blur(8px);
-  display:flex; align-items:center; justify-content:center; color: #86efac;
-}
-.dh-left h1 { font-size:18px; font-weight:700; margin:0; letter-spacing:1px; }
-.dh-left p { font-size:12px; color:rgba(255,255,255,0.7); margin:2px 0 0; }
+.dh-left { display:flex; align-items:flex-start; gap:14px; }
+.dh-icon { display: none; }
+.dh-left h1 { font-family: var(--serif); font-size: 24px; font-weight:600; margin:0; letter-spacing:0; line-height: 1.3; }
+.dh-left p { font-size: 14px; color: var(--text-secondary); margin: 6px 0 0; }
 .dh-right { display:flex; align-items:center; gap:20px; }
 .dh-clock { text-align:right; }
-.dh-time { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; display:block; }
-.dh-date { font-size:11px; color:rgba(255,255,255,0.65); }
+.dh-time { font-size: 24px; font-weight:700; font-variant-numeric:tabular-nums; display:block; }
+.dh-date { font-size: 12px; color: var(--text-secondary); }
 .dh-status {
   display:flex; align-items:center; gap:6px;
-  font-size:11px; padding:5px 12px; border-radius:999px;
+  font-size: 12px; padding:5px 12px; border-radius:999px;
   background:rgba(255,255,255,0.1);
 }
-.dh-status.online { color:#86efac; }
-.dh-dot-pulse { width:7px; height:7px; border-radius:50%; background:#22c55e; animation: pulse 2s infinite; }
+.dh-status.online { color:var(--brand-300); }
+.dh-dot-pulse { width:7px; height:7px; border-radius:50%; background:var(--brand-300); animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
 
 /* ============ KPI 指标卡 ============ */
-.kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--gray-200);
+}
 .kpi-card {
-  background: var(--bg-card); border-radius: var(--radius-lg);
-  padding: 16px 18px; display:flex; align-items:center; gap:12px;
-  border: 1px solid var(--gray-200);
-  backdrop-filter: var(--glass-blur);
-  transition: all var(--duration-normal) var(--ease-out);
-  position: relative; overflow: hidden;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid var(--gray-200);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
 }
-.kpi-card:hover { transform:translateY(-3px); box-shadow:var(--shadow-lg); border-color:var(--brand-200); }
-.kpi-card::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:2px;
-  background:var(--grad-brand); opacity:0; transition:opacity var(--duration-normal);
-}
-.kpi-card:hover::before { opacity:1; }
-.kpi-icon-wrap {
-  width:44px; height:44px; border-radius:12px; display:flex;
-  align-items:center; justify-content:center; flex-shrink:0;
-  transition:transform var(--duration-normal) var(--ease-spring);
-}
-.kpi-card:hover .kpi-icon-wrap { transform:scale(1.08) rotate(-4deg); }
-.kpi-red .kpi-icon-wrap { background:#fee2e2; color:var(--color-cotton); }
-.kpi-amber .kpi-icon-wrap { background:#fef3c7; color:var(--color-wheat); }
-.kpi-green .kpi-icon-wrap { background:#dcfce7; color:var(--color-rice); }
-.kpi-blue .kpi-icon-wrap { background:#dbeafe; color:var(--color-corn); }
-.kpi-teal .kpi-icon-wrap { background:#ccfbf1; color:#0f766e; }
-.kpi-icon { font-size:20px; }
-.kpi-body { flex:1; min-width:0; }
-.kpi-val { font-size:26px; font-weight:800; color:var(--text-primary); line-height:1.1; font-variant-numeric:tabular-nums; }
-.kpi-label { font-size:11px; color:var(--text-tertiary); margin-top:2px; }
-.kpi-trend { font-size:10px; font-weight:600; flex-shrink:0; white-space:nowrap; }
+.kpi-card:hover { transform: none; box-shadow: none; }
+.kpi-val { font-size: 24px; font-weight:800; color:var(--text-primary); line-height:1.1; font-variant-numeric:tabular-nums; }
+.kpi-label { font-size: 14px; color:var(--text-secondary); white-space: normal; line-height: 1.4; }
+.kpi-trend { font-size: 12px; font-weight:600; white-space: nowrap; }
 .kpi-trend.up { color:var(--color-cotton); }
 .kpi-trend.down { color:var(--color-rice); }
 .kpi-trend.steady { color:var(--text-tertiary); }
-.kpi-trend:not(.up):not(.down):not(.steady) { color:var(--text-tertiary); font-size:9px; }
-.kpi-card .sparkline { width:100%; height:20px; margin-bottom:4px; }
+.kpi-trend:not(.up):not(.down):not(.steady) { color:var(--text-tertiary); font-size: 12px; }
+.kpi-card:last-child { border-right: none; }
 
 /* ============ 主网格 ============ */
 .main-grid { display:grid; grid-template-columns:1fr 360px; gap:12px; }
@@ -933,19 +944,19 @@ onMounted(async () => {
 /* ============ 地图面板 ============ */
 .map-panel { padding:16px 16px 8px; }
 .panel-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.panel-title { font-size:14px; font-weight:700; color:var(--text-primary); }
-.panel-badge { font-size:10px; padding:3px 10px; border-radius:999px; background:var(--gray-100); color:var(--text-tertiary); }
-.panel-badge.badge-red { background:#fee2e2; color:var(--color-cotton); }
+.panel-title { font-size: 14px; font-weight:700; color:var(--text-primary); }
+.panel-badge { font-size: 12px; padding:3px 10px; border-radius:999px; background:var(--gray-100); color:var(--text-tertiary); }
+.panel-badge.badge-red { background:var(--amber-soft); color:var(--color-cotton); }
 .panel-tools { display:flex; align-items:center; gap:12px; }
 .map-legend-inline { display:flex; gap:14px; }
-.mli-item { font-size:11px; color:var(--text-tertiary); display:flex; align-items:center; gap:5px; }
+.mli-item { font-size: 12px; color:var(--text-tertiary); display:flex; align-items:center; gap:5px; }
 .mli-dot { width:8px; height:8px; border-radius:50%; }
 
 .map-wrap { position:relative; border-radius:var(--radius-md); overflow:hidden; }
 .map-loading .map-wrap { opacity:0.6; }
 .map-loader {
   position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  background:rgba(255,255,255,0.85); border-radius:var(--radius-md); z-index:10; gap:12px; color:var(--text-tertiary); font-size:13px;
+  background:rgba(6,22,14,0.82); border-radius:var(--radius-md); z-index:10; gap:12px; color:var(--text-tertiary); font-size: 14px;
 }
 .map-loader-spin { width:32px; height:32px; border:3px solid var(--gray-200); border-top-color:var(--brand-500); border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
@@ -955,7 +966,7 @@ onMounted(async () => {
 .cf-btn {
   display:flex; align-items:center; gap:5px;
   padding:5px 12px; border-radius:999px; border:1.5px solid var(--gray-200);
-  background:#fff; color:var(--text-tertiary); font-size:11px; cursor:pointer;
+  background: var(--bg-elev); color:var(--text-tertiary); font-size: 12px; cursor:pointer;
   transition: all var(--duration-fast);
 }
 .cf-btn:hover { border-color:var(--brand-300); color:var(--brand-700); }
@@ -978,20 +989,20 @@ onMounted(async () => {
 }
 @keyframes slideInRight { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
 .alert-item:hover { transform:translateX(3px); }
-.alert-high { background:#fef2f2; border-color:#fecaca; }
-.alert-mid { background:#fefce8; border-color:#fde68a; }
-.alert-low { background:#f0fdf4; border-color:#bbf7d0; }
+.alert-high { background:var(--amber-soft); border-color:var(--amber-line); }
+.alert-mid { background:var(--amber-soft); border-color:var(--amber-line); }
+.alert-low { background:var(--brand-50); border-color:var(--brand-200); }
 .al-icon { flex-shrink:0; margin-top:2px; }
 .alert-high .al-icon { color:var(--color-cotton); }
 .alert-mid .al-icon { color:var(--color-wheat); }
 .alert-low .al-icon { color:var(--color-rice); }
 .al-body { flex:1; min-width:0; }
-.al-title { font-size:12px; font-weight:600; color:var(--text-primary); }
-.al-desc { font-size:11px; color:var(--text-tertiary); margin-top:2px; line-height:1.4; }
+.al-title { font-size: 12px; font-weight:600; color:var(--text-primary); }
+.al-desc { font-size: 12px; color:var(--text-tertiary); margin-top:2px; line-height:1.4; }
 .al-tags { display:flex; gap:5px; margin-top:5px; flex-wrap:wrap; }
-.al-crop-tag { font-size:10px; padding:1px 8px; border-radius:999px; font-weight:600; }
-.al-drug-tag { font-size:10px; color:var(--text-tertiary); padding:1px 6px; border-radius:4px; background:var(--gray-100); }
-.al-time-tag { font-size:10px; color:var(--text-tertiary); padding:1px 6px; border-radius:4px; background:var(--gray-50); }
+.al-crop-tag { font-size: 12px; padding:1px 8px; border-radius:999px; font-weight:600; }
+.al-drug-tag { font-size: 12px; color:var(--text-tertiary); padding:1px 6px; border-radius:4px; background:var(--gray-100); }
+.al-time-tag { font-size: 12px; color:var(--text-tertiary); padding:1px 6px; border-radius:4px; background:var(--gray-50); }
 
 /* 重大病虫害 */
 .pest-mini-list { display:flex; flex-direction:column; gap:10px; max-height:360px; overflow-y:auto; }
@@ -1001,14 +1012,14 @@ onMounted(async () => {
 .pml-item:last-child { border-bottom:none; }
 .pml-head { display:flex; align-items:center; gap:6px; }
 .pml-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.pml-name { font-size:12px; font-weight:600; color:var(--text-primary); flex:1; }
-.pml-sev { font-size:10px; padding:2px 7px; border-radius:999px; font-weight:600; }
-.sev-偏 { background:#fee2e2; color:var(--color-cotton); }
-.sev-中 { background:#fefce8; color:var(--color-wheat); }
-.pml-meta { font-size:10px; color:var(--text-tertiary); margin-top:3px; }
+.pml-name { font-size: 12px; font-weight:600; color:var(--text-primary); flex:1; }
+.pml-sev { font-size: 12px; padding:2px 7px; border-radius:999px; font-weight:600; }
+.sev-偏 { background:var(--amber-soft); color:var(--color-cotton); }
+.sev-中 { background:var(--amber-soft); color:var(--color-wheat); }
+.pml-meta { font-size: 12px; color:var(--text-tertiary); margin-top:3px; }
 .pml-bar-wrap { display:flex; align-items:center; gap:6px; margin-top:5px; }
 .pml-bar { height:5px; border-radius:999px; min-width:4px; transition:width .6s var(--ease-out); }
-.pml-num { font-size:9px; color:var(--text-tertiary); white-space:nowrap; }
+.pml-num { font-size: 12px; color:var(--text-tertiary); white-space:nowrap; }
 .pml-trend { margin-top:4px; }
 
 /* ============ 底部三列 ============ */
@@ -1022,16 +1033,16 @@ onMounted(async () => {
   background:var(--gray-50); border:1px solid var(--gray-100);
 }
 .wf-label {
-  display:block; font-size:10px; color:var(--text-tertiary); margin-bottom:3px;
+  display:block; font-size: 12px; color:var(--text-tertiary); margin-bottom:3px;
 }
 .wf-step strong {
-  display:block; font-size:12px; color:var(--text-primary);
+  display:block; font-size: 12px; color:var(--text-primary);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .trend-crop-tabs { display:flex; gap:4px; flex-wrap:wrap; }
 .tct-btn {
   padding:3px 10px; border-radius:6px; border:1.5px solid var(--gray-200);
-  background:#fff; color:var(--text-tertiary); font-size:10px; cursor:pointer; transition:all var(--duration-fast);
+  background: var(--bg-elev); color:var(--text-tertiary); font-size: 12px; cursor:pointer; transition:all var(--duration-fast);
 }
 .tct-btn.active { background:var(--brand-50); border-color:var(--brand-400); color:var(--brand-700); font-weight:600; }
 .tct-btn:hover { border-color:var(--brand-300); color:var(--brand-700); }
@@ -1048,14 +1059,14 @@ onMounted(async () => {
 .id-item:last-child { padding-right:0; }
 .id-divider { width:1px; height:36px; background:var(--gray-100); flex-shrink:0; }
 .id-icon-wrap { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.id-ic-blue { background:#dbeafe; color:var(--color-corn); }
-.id-ic-green { background:#dcfce7; color:var(--color-rice); }
-.id-ic-teal { background:#ccfbf1; color:#0f766e; }
-.id-ic-purple { background:#ede9fe; color:#7c3aed; }
-.id-ic-amber { background:#fef3c7; color:var(--color-wheat); }
+.id-ic-blue { background:var(--brand-50); color:var(--color-corn); }
+.id-ic-green { background:var(--brand-50); color:var(--color-rice); }
+.id-ic-teal { background:var(--brand-50); color:var(--brand-400); }
+.id-ic-purple { background:var(--brand-50); color:var(--brand-400); }
+.id-ic-amber { background:var(--amber-soft); color:var(--color-wheat); }
 .id-body { min-width:0; }
-.id-val { font-size:12px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.id-lbl { font-size:10px; color:var(--text-tertiary); margin-top:1px; }
+.id-val { font-size: 12px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.id-lbl { font-size: 12px; color:var(--text-tertiary); margin-top:1px; }
 
 /* ============ Card 统一样式 ============ */
 .card {
@@ -1073,7 +1084,17 @@ onMounted(async () => {
   .bottom-grid { grid-template-columns:1fr; }
 }
 @media (max-width:800px) {
-  .kpi-row { grid-template-columns:repeat(2,1fr); }
+  .dashboard-header { flex-direction: column; align-items: flex-start; }
+  .dh-left { align-items: flex-start; }
+  .dh-left h1 { font-size: 20px; line-height: 1.35; }
+  .dh-clock { display: none; }
+  .dh-right { width: 100%; justify-content: space-between; }
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .kpi-card { padding: 8px 10px; }
+  .kpi-val { font-size: 20px; }
+  .kpi-card:nth-child(2n) { border-right: none; }
+  .kpi-card:nth-child(n + 3) { border-top: 1px solid var(--gray-200); }
+  #amapContainer { height: 300px !important; }
   .workflow-strip { grid-template-columns:1fr; }
   .id-row { flex-wrap:wrap; }
   .id-divider { display:none; }
