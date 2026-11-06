@@ -1,42 +1,77 @@
 @echo off
+setlocal EnableExtensions
+chcp 65001 >nul
 REM ============================================================
-REM 重训练脚本（Windows）— 田安智识
-REM 前置：先用 fix_dataset_labels.py 生成清洗数据集，例如：
-REM   D:\ProgramData\Anaconda3\envs\yolo\python.exe training\fix_dataset_labels.py ^
-REM       --train D:\Projects\YOLOv8_PlantDisease\dataset\train ^
-REM       --val   D:\Projects\YOLOv8_PlantDisease\dataset\val ^
-REM       --out   D:\Projects\YOLOv8_PlantDisease\dataset_cleaned ^
-REM       --name-map models\class_names.json --min-per-class 5 --apply
+REM 一条龙（Windows）：需要时清洗 → 训练 → 复制 best.pt 和 class_names.json
+REM 在仓库根目录的上一级没有关系，本脚本会自己 cd 到仓库根目录。
+REM
+REM 可覆盖的环境变量：
+REM   PY            Python（须已安装 torch、ultralytics）
+REM   RAW_TRAIN     原始 train 目录。清洗结果已合格时可以没有
+REM   RAW_VAL       原始 val 目录
+REM   DATA          清洗输出 / 训练数据目录
+REM   NAME_MAP      旧类别映射，默认 models\class_names.json
+REM   MODEL IMGSZ EPOCHS BATCH PATIENCE DEVICE MIN_PER_CLASS
+REM   FORCE_CLEAN=1 即使已有清洗结果也重洗
 REM ============================================================
-setlocal
 
-REM ---- 0. 仓库根目录（本文件位于 training\ 下）----
 cd /d "%~dp0.."
 
-REM ---- 1. Python 环境（yolo 环境已装 ultralytics+torch；按需修改）----
-set "PY=D:\ProgramData\Anaconda3\envs\yolo\python.exe"
+if not defined PY set "PY=D:\ProgramData\Anaconda3\envs\yolo\python.exe"
+if not defined RAW_TRAIN set "RAW_TRAIN=D:\Projects\YOLOv8_PlantDisease\dataset\train"
+if not defined RAW_VAL set "RAW_VAL=D:\Projects\YOLOv8_PlantDisease\dataset\val"
+if not defined DATA set "DATA=D:\Projects\YOLOv8_PlantDisease\dataset_cleaned"
+if not defined NAME_MAP set "NAME_MAP=models\class_names.json"
+if not defined MODEL set "MODEL=yolov8s-cls.pt"
+if not defined IMGSZ set "IMGSZ=384"
+if not defined EPOCHS set "EPOCHS=100"
+if not defined BATCH set "BATCH=32"
+if not defined PATIENCE set "PATIENCE=30"
+if not defined DEVICE set "DEVICE=0"
+if not defined MIN_PER_CLASS set "MIN_PER_CLASS=5"
 
-REM ---- 2. 训练参数（RTX 4070 8GB 可 batch 32；显存小改 16；想快改 yolov8n-cls 或 imgsz 320）----
-REM 注意：分类任务 --data 传数据集【目录】（含 train/ 与 val/），不是 yaml
-set DATA=D:\Projects\YOLOv8_PlantDisease\dataset_cleaned
-set MODEL=yolov8s-cls.pt
-set IMGSZ=384
-set EPOCHS=100
-set BATCH=32
+"%PY%" -c "import sys" >nul 2>&1
+if errorlevel 1 (
+  echo [FAIL] 无法运行 Python: "%PY%"
+  echo        请设置 PY 为已安装 torch 和 ultralytics 的解释器，例如：
+  echo        set PY=C:\Users\you\anaconda3\envs\yolo\python.exe
+  exit /b 1
+)
+if not exist "%NAME_MAP%" (
+  echo [FAIL] 找不到类别映射: "%NAME_MAP%"
+  echo        默认应是仓库里的 models\class_names.json。请在仓库根目录运行，或设置 NAME_MAP。
+  exit /b 1
+)
 
-%PY% training\train_yolov8.py --data %DATA% --model %MODEL% --imgsz %IMGSZ% --epochs %EPOCHS% --batch %BATCH% --device 0 --name plant_disease_v2
-if errorlevel 1 goto :fail
+set "EXTRA="
+if /I "%FORCE_CLEAN%"=="1" set "EXTRA=--force-clean"
 
-REM ---- 3. 部署回仓库（模型 + 类别映射，保持前后端一致）----
-copy /Y output\plant_disease_v2\weights\best.pt models\best.pt
-copy /Y "D:\Projects\YOLOv8_PlantDisease\dataset_cleaned\class_names.json" models\class_names.json
+echo [RUN] %PY% training\pipeline.py
+echo       DATA=%DATA%
+echo       RAW_TRAIN=%RAW_TRAIN%
+echo       RAW_VAL=%RAW_VAL%
+
+"%PY%" training\pipeline.py ^
+  --raw-train "%RAW_TRAIN%" ^
+  --raw-val "%RAW_VAL%" ^
+  --data "%DATA%" ^
+  --name-map "%NAME_MAP%" ^
+  --min-per-class %MIN_PER_CLASS% ^
+  --model %MODEL% ^
+  --imgsz %IMGSZ% ^
+  --epochs %EPOCHS% ^
+  --batch %BATCH% ^
+  --patience %PATIENCE% ^
+  --device %DEVICE% ^
+  --deploy-to models ^
+  %EXTRA%
+if errorlevel 1 (
+  echo [FAIL] 清洗、训练或部署失败。上面的 [FAIL] 会写明缺哪个路径。
+  exit /b 1
+)
+
 echo.
-echo ============================================================
-echo  训练完成！已更新 models\best.pt 与 models\class_names.json
-echo  记得: git add models/ && git commit -m "feat: retrain model"
-echo ============================================================
+echo [OK] 已用 %DATA% 更新 models\best.pt 和 models\class_names.json
+echo      建议再看一遍验证输出，并运行：
+echo      "%PY%" training\validate_cls.py --weights output\plant_disease_v2\weights\best.pt --data "%DATA%" --imgsz %IMGSZ% --device %DEVICE%
 exit /b 0
-
-:fail
-echo 训练失败，请检查上方日志。
-exit /b 1

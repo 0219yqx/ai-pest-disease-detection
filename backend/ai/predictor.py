@@ -1,16 +1,24 @@
-import os, sys, json, numpy as np
+import numpy as np
 from pathlib import Path
 from config import settings
+from ai.class_names import format_issue_report, load_class_names, resolve_label
 
 def _load_class_names():
     """从 models/class_names.json 加载类别映射（前后端单一来源）。
-    若文件缺失则退回空映射，推理时以模型原始名（class_N）兜底。"""
+
+    不在这里写死病名。文件有两种合法形态，resolve_label 会区分：
+    遗留权重的 class_N 用编号 N 查表（允许 61–74 这种空缺）；
+    清洗重训后的文件是 0..N-1 连续编号，用模型下标查表。
+    """
     try:
-        p = Path(settings.CLASS_NAMES_PATH)
-        if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return {int(k): v for k, v in data.items()}
+        path = Path(settings.CLASS_NAMES_PATH)
+        if path.exists():
+            mapping = load_class_names(path)
+            report = format_issue_report(mapping)
+            if "需要处理" in report:
+                print("[Predictor] " + report.replace("\n", " | "))
+                print("[Predictor] 这是遗留权重的类别表。重训并部署后，空缺和重复健康类会消失。")
+            return mapping
     except Exception as e:
         print(f"[Predictor] 类别映射加载失败: {e}")
     return {}
@@ -33,17 +41,20 @@ class Predictor:
         else:
             print(f"[Predictor] 模型不存在: {mf}")
 
-    def _resolve_name(self, idx):
-        """模型索引 -> 中文名（class_N -> 中文映射）"""
+    def _raw_model_name(self, idx):
         model_names = getattr(self._model, "names", None) or {}
-        raw = model_names.get(idx, f"class_{idx}") if isinstance(model_names, dict) else str(idx)
-        if isinstance(raw, str) and raw.startswith("class_"):
-            try:
-                cid = int(raw.replace("class_", ""))
-                return MODEL_CLASSES.get(cid, raw)
-            except ValueError:
-                return raw
-        return raw if isinstance(raw, str) else str(raw)
+        if isinstance(model_names, dict):
+            if idx in model_names:
+                return model_names[idx]
+            if str(idx) in model_names:
+                return model_names[str(idx)]
+        if isinstance(model_names, (list, tuple)) and 0 <= idx < len(model_names):
+            return model_names[idx]
+        return f"class_{idx}"
+
+    def _resolve_name(self, idx):
+        """模型下标 → 展示名。规则见 ai/class_names.py，不在这里维护第二份对照表。"""
+        return resolve_label(idx, self._raw_model_name(idx), MODEL_CLASSES)
 
     def predict(self, image_path):
         if self._model is None:
