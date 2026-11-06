@@ -8,7 +8,7 @@
 |---|---|
 | 前端 | Vue 3 + Vite + vue-router + axios + ECharts + vis-network + 高德地图 JS API |
 | 后端 | Python FastAPI + uvicorn + ultralytics(YOLOv8) + PyTorch |
-| 模型 | `models/best.pt` — YOLOv8n-cls 分类模型（64 类，imgsz=224，Top-1 ≈ 86.6%） |
+| 模型 | `models/best.pt` — YOLOv8n-cls（64 类，imgsz=224）。仓库里写过的 Top-1 ≈ 86.6% 是在**污染验证标签**上测的，不是实地病名准确率 |
 | AI 问诊 | DeepSeek Chat API（未配置 Key 时提示离线，不再返回写死回复） |
 
 ## 快速开始
@@ -65,16 +65,18 @@ npm run dev      # http://localhost:5173 （/api 自动代理到后端 8000）
 │       ├── views/               # Home / Diagnose / Consult / MapView / Knowledge
 │       └── data/knowledgeData.js
 ├── models/
-│   ├── best.pt                  # 训练好的 YOLOv8n-cls 模型
-│   └── class_names.json         # ⭐ 类别映射（前后端单一来源，改类别名只改这里）
-└── training/                    # 数据重标注 + 重训练脚本（见下文）
+│   ├── best.pt                  # 现役 YOLOv8n-cls。换模型时必须连 class_names.json 一起换
+│   └── class_names.json         # ⭐ 类别映射（前后端只读这一份）
+└── training/                    # 审计、清洗、训练、验证、一条龙脚本（见下文）
 ```
 
 ## 模型与类别映射
 
-- 当前模型为 **YOLOv8n-cls 分类模型**，共 **64 个真实类别**（`class_0`~`class_60`、`class_75`、`class_76`、`class_77`）。
-- 中文名映射统一维护在 **`models/class_names.json`**：后端 `predictor.py` 与前端 `knowledgeData.js` 都从这一份读取，**不要**在别处再硬编码类别名。
-- `predictor.py` 返回 `top5_list`（真实 Top5 类别名+置信度），前端"其他候选病害"展示的就是模型真实输出，而非伪造数据。
+- 现役权重是 **YOLOv8n-cls**，类别名是文件夹名 `class_0`–`class_60`、`class_75`、`class_76`、`class_77`（64 类）。编号 **61–74 是空的**。
+- 中文名只放在 **`models/class_names.json`**。后端 `backend/ai/predictor.py` 和前端 `frontend/src/data/knowledgeData.js` 都读它，诊断页用 `frontend/src/classNames.js` 查表（规则与 `backend/ai/class_names.py` 相同）。不要在页面或接口里再写一份 id → 病名。
+- 这份现役 JSON **故意保留空缺和重复健康类**（`玉米健康_2` 这类）。权重里的名字是 `class_N`，查表用的是 N，不是模型内部下标。Ultralytics 按文件夹名字母序编号，`class_10` 的下标是 2；若按下标去查，会显示成另一种病。
+- 清洗并重训之后，JSON 变成 **0..N-1 连续编号**，顺序等于 `sorted(train 文件夹名)`，也就是新模型的下标。部署时要连 `best.pt` 一起换。只改 JSON、不重训，病名会对错位。
+- `predictor.py` 返回的 `top5_list` 是模型真实的前 5 名。前端「其他候选病害」用的就是这份结果。
 
 ## ⚠️ 已知问题：训练标签需要校正（重要）
 
@@ -90,39 +92,101 @@ npm run dev      # http://localhost:5173 （/api 自动代理到后端 8000）
 - `class_50/51`（黄瓜健康/白粉病）内混入番茄叶霉病；
 - `class_54/55`（玉米健康_4/5）内混入番茄斑枯病。
 
-**因此当前 86.6% 的 Top-1 准确率是在被污染标签上测得的，真实场景下显示的中文病名可能不正确。** 上线前请按 `training/` 中的脚本重新标注并重训模型。
+**因此当前约 86.6% 的 Top-1 是在被污染的验证标签上测得的。** 模型和验证集用的是同一套错误文件夹名，高分只说明「和错误标签一致」，不能当成实地看到的中文病名准确率。上线前用下面的脚本清洗并重训。不要把数据集提交进仓库。
 
-## 训练（重新训练模型）
+## 训练（清洗 → 训练 → 部署）
+
+数据集放在仓库外面，目录是 YOLOv8 分类的样子：`train/<类别文件夹>/*.jpg` 和 `val/<类别文件夹>/*.jpg`。类别文件夹可以是现在的 `class_N`，也可以已经是中文名。
+
+下面命令都在**仓库根目录**执行。把路径换成你本机的目录。没有 GPU 时把 `--device 0` 改成 `--device cpu`，并把 `--batch` 降到 8 或 16。
 
 ```bash
-# 1) 按文件名规则把图片重新归位到正确类别（生成 66 类清洗数据集）
-#    --name-map 会用仓库现有的 models/class_names.json 为未确证类补中文名；
-#    同作物重复"健康"类自动合并（如 玉米健康_2~_5 -> 玉米健康）
-python training/fix_dataset_labels.py --train D:/你的数据集目录/train --val D:/你的数据集目录/val \
-    --out D:/你的数据集目录/cleaned --name-map models/class_names.json --min-per-class 5 --apply
+# 0) 不改图片，只出审计报告。先看这份报告再决定要不要清洗。
+python training/fix_dataset_labels.py \
+    --train D:/你的数据集目录/train \
+    --val   D:/你的数据集目录/val \
+    --name-map models/class_names.json \
+    --report audit_report.md
 
-# 2) 训练（建议 GPU；注意分类任务 --data 传【目录】而非 yaml）
-python training/train_yolov8.py --data D:/你的数据集目录/cleaned \
-    --model yolov8s-cls.pt --imgsz 384 --epochs 100 --batch 32 --device 0
+# 1) 复制到一个新目录（不移动、不删除原始图片）。
+#    同作物的「玉米健康_2」会并进「玉米健康」。
+#    训练+验证合计少于 5 张，或训练集里一张都没有的类，不会进入结果。
+#    输出是 train/<中文类别名>/、val/<中文类别名>/，以及与文件夹排序一致的 class_names.json。
+python training/fix_dataset_labels.py \
+    --train D:/你的数据集目录/train \
+    --val   D:/你的数据集目录/val \
+    --out   D:/你的数据集目录/cleaned \
+    --name-map models/class_names.json \
+    --min-per-class 5 \
+    --apply
+# 输出目录已经有 train/ 时，加重跑要加 --force。--out 不能和原始 train/val 重叠。
 
-# 3) 训练完成后把 best.pt 复制到仓库 models/，并核对 models/class_names.json 与数据集类别一致
-#    Windows 一条龙：直接运行 training/train.bat（含激活环境、训练、部署回仓库）
+# 2) 训练。默认 yolov8s-cls、imgsz 384、100 轮、patience 30。
+#    --data 传目录，不要传 yaml。
+python training/train_yolov8.py \
+    --data D:/你的数据集目录/cleaned \
+    --model yolov8s-cls.pt \
+    --imgsz 384 \
+    --epochs 100 \
+    --patience 30 \
+    --batch 32 \
+    --device 0
+
+# 3) 看验证集一致率。脚本打印 top1、top5，以及 ultralytics 若返回混淆矩阵时的逐类召回和最常见错分。
+python training/validate_cls.py \
+    --weights output/plant_disease_v2/weights/best.pt \
+    --data D:/你的数据集目录/cleaned \
+    --imgsz 384 \
+    --device 0
+
+# 4) 接受结果之后，再把权重和类别文件一起换进仓库。只换 best.pt 会让病名对错位。
+python training/pipeline.py --deploy-only \
+    --weights output/plant_disease_v2/weights/best.pt \
+    --data D:/你的数据集目录/cleaned \
+    --deploy-to models
+
+# 核对：清洗结果必须是 0..N-1 连续、且与 train 文件夹顺序一致，否则退出码为 1。
+python training/check_class_names.py \
+    --class-names D:/你的数据集目录/cleaned/class_names.json \
+    --data D:/你的数据集目录/cleaned \
+    --strict
 ```
 
-已按上述流程对 `D:\Projects\YOLOv8_PlantDisease` 执行过一次清洗：
-- 确认 **9017 张（28%）** 错标图片按文件名规则归位到正确类别；
-- 剔除 3 个样本 <5 的垃圾类；同作物重复健康类合并；
-- 最终数据集 **66 类**（train 32051 张 / val 4644 张），输出在 `dataset_cleaned/`；
-- 冒烟验证：yolov8s-cls @384 第 1 轮即 top1 53.6% / top5 90.3%（原模型 64 类训 37 轮仅 86.6%）。
+Windows 一条龙（清洗结果不合格或不存在时才清洗，然后训练，再复制到 `models\`）：
 
-训练建议（针对标签问题）：
+```bat
+set PY=D:\ProgramData\Anaconda3\envs\yolo\python.exe
+set RAW_TRAIN=D:\你的数据集目录\train
+set RAW_VAL=D:\你的数据集目录\val
+set DATA=D:\你的数据集目录\cleaned
+training\train.bat
+```
 
-1. **先重标注再训练**：用 `fix_dataset_labels.py` 清洗；删除只有 1 张图的类别；
-2. **合并重复"健康"类**：工具已自动合并 `玉米健康_2~_5`、`番茄健康_2~_5` 等；
-3. **类别不平衡**：对小样本类使用类别加权或重采样；
-4. **增强**：开启 `degrees`/`shear`/`mixup`（作物叶面旋转很常见）；
-5. **分辨率**：`imgsz` 提到 384 或 448；
-6. **模型**：`yolov8s-cls` / `yolov8m-cls` 通常比 nano 高 2~4 个点。
+`PY` 必须是已经装了 `torch` 和 `ultralytics` 的解释器。`DATA` 还不能直接训练，而 `RAW_TRAIN`、`RAW_VAL` 或 `NAME_MAP` 缺了任何一个时，脚本会失败并写明缺的是哪一个，不会用空目录继续训。已经有合格的 `DATA`（含 `train/`、`val/` 和与文件夹一致的 `class_names.json`）时，会跳过清洗。强制重洗：`set FORCE_CLEAN=1`。
+
+Linux / macOS 用同样的环境变量跑 `./training/train.sh`。`DATA` 在 shell 脚本里没有默认值，必须自己设。
+
+不跑训练、只检查脚本本身（仓库里没有数据集，也不会下载）：
+
+```bash
+python -m unittest training.tests.test_label_pipeline
+node --test frontend/src/classNames.test.mjs
+```
+
+### 污染标签上的分数，和清洗之后的分数
+
+| | 污染验证集上的分数 | 清洗之后的分数 |
+|---|---|---|
+| 测的是什么 | 预测文件夹和**原来的错误文件夹**是否一致 | 预测文件夹和**清洗后的文件夹**是否一致 |
+| 高分说明什么 | 模型记住了错误标签。约 86.6% 的 Top-1 属于这种 | 只说明和清洗标签一致。文件名对得上的类比较可信 |
+| 不能说明什么 | 实地照片上的中文病名是对的 | md5（AI Challenger）和自采、对不上码的图片仍可能标错 |
+| 能否和 86.6% 比 | — | 不能。类别集合变了，标签含义也变了，高一点或低一点都不代表模型变好或变坏 |
+
+审计报告里的「确证错标」只统计**文件名解码出的病害和文件夹规划标签不一致**的图片。能解码但已经在正确文件夹里的，不算错标。
+
+以前在 `D:\Projects\YOLOv8_PlantDisease` 上留过一次本地记录（数据集不在本仓库，这里没有重跑，也不要把它当成这次改动的成绩）：当时的计数是 9017 张（28%）文件名可解码；去掉样本过少的类、合并重复健康类之后是 66 类（train 32051 / val 4644）。yolov8s-cls、imgsz 384 只训了 1 轮做冒烟，top1 53.6% / top5 90.3%。那个 28% 用的是旧计数（凡是能解码都算进去）。请以你本机新生成的 `audit_report.md` 和 `validate_cls.py` 的输出为准。
+
+清洗脚本会合并 `玉米健康_2` 这类重复健康类，并丢掉样本过少的类。训练脚本默认 `yolov8s-cls`、`imgsz 384`，并打开旋转、剪切和 mixup。类别仍然可能不平衡。文件名对不上的类要人工看报告里的「码未知 / 自采 / 健康文件名出现在非健康类」。
 
 ## 高德地图 Key 安全
 

@@ -8,8 +8,10 @@
  */
 
 // ====== 类别映射（单一来源）=======
-// 统一从仓库根目录 models/class_names.json 读取（与后端 backend/ai/predictor.py 共用同一份），
-// 修改类别名只需改这一个文件。文件包含当前 YOLO 模型的 64 个真实类别（class_0..60, 75, 76, 77）。
+// 只从仓库根目录 models/class_names.json 读取，和 backend/ai/predictor.py 是同一份文件。
+// 不要在页面里再写一份 id → 病名。现役文件有空缺（61–74）和重复健康类，
+// 因为现役 best.pt 的类别名仍是 class_N；清洗重训部署后会被换成 0..N-1 的连续表。
+// 查表规则在 ../classNames.js，须与 backend/ai/class_names.py 一致。
 import rawClassNames from '../../../models/class_names.json'
 export const MODEL_CLASSES = rawClassNames
 

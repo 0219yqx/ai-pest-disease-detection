@@ -236,6 +236,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { PEST_KNOWLEDGE, CROP_COLOR_MAP, MODEL_CLASSES } from '../data/knowledgeData.js'
+import { resolveModelLabel } from '../classNames.js'
 
 const router = useRouter()
 
@@ -247,21 +248,11 @@ const tagMap = {
   '马铃薯':'tag-orange',
 }
 
-// class_id 或 class_N → 中文名称
+// 展示名以 models/class_names.json 为准。遗留 class_N 按编号查，不能按模型下标查。
 function resolveClassName(result) {
-  // 如果 disease 已经是中文（非 class_ 开头），直接用
   const name = result.disease || result.pest_name || ''
-  if (!name.startsWith('class_')) return name
-  // 尝试从 class_id 解析
-  const cid = result.class_id
-  if (cid !== undefined && cid !== null && cid >= 0) {
-    return MODEL_CLASSES[cid] || name
-  }
-  // 尝试从 class_N 字符串解析
-  try {
-    const n = parseInt(name.replace('class_', ''))
-    return MODEL_CLASSES[n] || name
-  } catch { return name }
+  const cid = Number.isInteger(result.class_id) ? result.class_id : null
+  return resolveModelLabel(cid, name, MODEL_CLASSES)
 }
 
 // 从 YOLO 类名中提取 severity 后缀（如 "_轻"、"_重"、"_严重"、"_中"、"_轻微"、"_早期"、"_严重"、"_中期"、"_后期"）
