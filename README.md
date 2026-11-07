@@ -32,8 +32,11 @@ python main.py   # 启动于 http://localhost:8000 ，接口文档 /docs
 | `DEEPSEEK_API_KEY` | DeepSeek 对话问诊的 Key（不填则问诊返回提示） | 空 |
 | `DEEPSEEK_BASE_URL` | DeepSeek API 地址 | `https://api.deepseek.com` |
 | `AMAP_KEY` / `AMAP_SECRET` | 高德地图 Key（需在控制台配置域名白名单） | 空 |
-| `MODEL_PATH` | 模型路径 | `../models/best.pt` |
-| `CLASS_NAMES_PATH` | 类别映射（前后端共用） | `../models/class_names.json` |
+| `MODEL_PATH` | 模型路径。必须与下面的类别映射是同一次训练的产物 | `../models/best.pt` |
+| `CLASS_NAMES_PATH` | 类别映射（前后端共用）。必须与 `best.pt` 成对部署 | `../models/class_names.json` |
+| `OTHER_CLASS_INDEX` | v3 拒识类的 YOLO 下标 | `1` |
+| `OTHER_CLASS_MODEL_NC` | 达到该类别数时，上一项下标即使标签没更新也拒识。`0` 关闭这条捷径 | `67` |
+| `OTHER_CLASS_FORCE_INDEX` | 设为 `1` 时，无论类别数，该下标的 top-1 都拒识 | `0` |
 | `MAX_UPLOAD_MB` | 上传图片大小上限 | 10 |
 | `HOST` / `PORT` | 监听地址/端口 | `0.0.0.0` / `8000` |
 | `CORS_ORIGINS` | 允许的前端来源，逗号分隔 | `http://localhost:5173,http://127.0.0.1:5173` |
@@ -56,7 +59,8 @@ npm run dev      # http://localhost:5173 （/api 自动代理到后端 8000）
 
 ```
 ├── backend/
-│   ├── ai/predictor.py          # YOLOv8 推理 + 四层非农作物拒识 + 真实 Top5 候选
+│   ├── ai/predictor.py          # YOLOv8 推理 + MobileNet 植物门控 + other 类拒识 + 低置信度启发式 + 真实 Top5 候选
+│   ├── ai/other_class.py        # v3「other / 非植物/无关图片」拒识与权重-类别映射成对检查
 │   ├── api/                     # diagnose / diagnose_ai / history / knowledge / map_api
 │   ├── knowledge_graph/         # 病虫害知识库（防治方案）
 │   └── crawler/                 # 河南历史虫情数据
@@ -72,9 +76,26 @@ npm run dev      # http://localhost:5173 （/api 自动代理到后端 8000）
 
 ## 模型与类别映射
 
-- 当前模型为 **YOLOv8n-cls 分类模型**，共 **64 个真实类别**（`class_0`~`class_60`、`class_75`、`class_76`、`class_77`）。
+- 当前仓库里的 **YOLOv8n-cls** 是 **64 类**（`class_0`~`class_60`、`class_75`、`class_76`、`class_77`）。YOLO 下标 1 对应 `class_1` / **樱桃白粉病**，不是拒识类。
 - 中文名映射统一维护在 **`models/class_names.json`**：后端 `predictor.py` 与前端 `knowledgeData.js` 都从这一份读取，**不要**在别处再硬编码类别名。
+- `best.pt` 和 `class_names.json` 必须成对加载。服务启动时会核对类别数：`class_N` 按文件名编号对齐，v3 的文件夹名按下标对齐。只换其中一个，病名会错位。
 - `predictor.py` 返回 `top5_list`（真实 Top5 类别名+置信度），前端"其他候选病害"展示的就是模型真实输出，而非伪造数据。
+
+### v3 部署（67 类，index 1 是拒识类）
+
+本地 v3 权重不进 git。上线时同时替换这两份文件：
+
+1. `models/best.pt` — YOLOv8-cls，**67 类**
+2. `models/class_names.json` — 与该次训练文件夹顺序一致的 67 条映射
+
+按文件夹名字母序，`other` 在 **YOLO index 1**，展示名是 **「非植物/无关图片」**。诊断接口在 MobileNet 植物门控之后、把结果当成病害返回之前，遇到下列 top-1 会返回与 `not_plant` / `low_confidence` 相同的拒识结构（`source=rejected`，`reason=other_class`，并带 `message`，前端拒识提示会显示「未识别到作物」）：
+
+- 类别名是 `other`、`非植物/无关图片`，或「其他 / 非植物 / 无关图片 / non-plant」等写法
+- 或者当前权重是 67 类且 top-1 就是 index 1（即使 json 还是旧病名）
+
+MobileNet 植物门控和低置信度 / 分差 / 熵启发式都保留。不要在这台 1.6GB 机器上加载 CLIP。
+
+注意：部分普通花园照片会被 v3 误判成 `other` 而拒识，这是模型行为，不是门控被关掉。64 类旧权重不会仅因为 index 1 被拒识。
 
 ## ⚠️ 已知问题：训练标签需要校正（重要）
 
@@ -105,7 +126,8 @@ python training/fix_dataset_labels.py --train D:/你的数据集目录/train --v
 python training/train_yolov8.py --data D:/你的数据集目录/cleaned \
     --model yolov8s-cls.pt --imgsz 384 --epochs 100 --batch 32 --device 0
 
-# 3) 训练完成后把 best.pt 复制到仓库 models/，并核对 models/class_names.json 与数据集类别一致
+# 3) 把同一次训练的 best.pt 与 class_names.json 成对复制到仓库 models/
+#    v3 若含 other 类：字母序 index 1，展示名写成「非植物/无关图片」
 #    Windows 一条龙：直接运行 training/train.bat（含激活环境、训练、部署回仓库）
 ```
 

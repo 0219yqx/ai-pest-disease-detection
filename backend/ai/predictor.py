@@ -4,6 +4,12 @@ NOT_PLANT_MSG = '未检测到植物叶片或病虫害，请上传作物叶片或
 LOW_CONF_MSG = '置信度较低，可能不是病虫害相关图片，请换一张叶片或病斑特写再试'
 from pathlib import Path
 from config import settings
+from ai.other_class import (
+    class_pair_report,
+    format_class_pair_log,
+    other_class_reject_result,
+    raw_model_name,
+)
 
 def _load_class_names():
     """从 models/class_names.json 加载类别映射（前后端单一来源）。
@@ -35,18 +41,32 @@ class Predictor:
                 print(f"[Predictor] YOLO加载失败: {e}")
         else:
             print(f"[Predictor] 模型不存在: {mf}")
+        if self._model is not None:
+            report = class_pair_report(getattr(self._model, "names", None), MODEL_CLASSES)
+            print(format_class_pair_log(report))
 
-    def _resolve_name(self, idx):
-        """模型索引 -> 中文名（class_N -> 中文映射）"""
-        model_names = getattr(self._model, "names", None) or {}
-        raw = model_names.get(idx, f"class_{idx}") if isinstance(model_names, dict) else str(idx)
-        if isinstance(raw, str) and raw.startswith("class_"):
+    def _resolve_name(self, idx, paired=False):
+        """模型索引 -> 展示名。
+
+        class_N 权重按文件名里的编号查 class_names.json（64 类模型的 YOLO
+        下标不等于 class_N 编号）。v3 的文件夹名按下标与 json 对齐，且只有
+        best.pt 与 class_names.json 成对时才采用 json 展示名。
+        """
+        raw = raw_model_name(getattr(self._model, "names", None), idx)
+        if raw.startswith("class_"):
             try:
-                cid = int(raw.replace("class_", ""))
+                cid = int(raw.replace("class_", "", 1))
                 return MODEL_CLASSES.get(cid, raw)
             except ValueError:
                 return raw
-        return raw if isinstance(raw, str) else str(raw)
+        if paired:
+            try:
+                mapped = MODEL_CLASSES.get(int(idx))
+            except (TypeError, ValueError):
+                mapped = None
+            if isinstance(mapped, str) and mapped.strip():
+                return mapped
+        return raw
 
     def predict(self, image_path):
         if self._model is None:
@@ -69,11 +89,27 @@ class Predictor:
             if probs is None:
                 return {"disease":"识别失败","confidence":0,"crop":"","symptoms":"","treatment":"请重试","source":"error"}
             
-            top1_idx = probs.top1
+            top1_idx = int(probs.top1)
             top1_conf = float(probs.top1conf)
-            name = self._resolve_name(top1_idx)
+            model_names = getattr(self._model, "names", None)
+            pair = class_pair_report(model_names, MODEL_CLASSES)
+            raw_name = raw_model_name(model_names, top1_idx)
+            name = self._resolve_name(top1_idx, paired=pair["paired"])
 
-            # ===== 非农作物图片过滤（四层检测）=====
+            # 植物门控之后、成功病害结果之前：v3 的 other / 「非植物/无关图片」
+            # （67 类时 YOLO index 1）不能当成病名返回。
+            other_reject = other_class_reject_result(
+                top1_idx,
+                top1_conf,
+                raw_name,
+                name,
+                MODEL_CLASSES,
+                pair["model_nc"],
+            )
+            if other_reject:
+                return other_reject
+
+            # ===== 非农作物图片过滤（低置信度 / 分差 / 熵，门控与 other 类之后）=====
             # 获取所有类的概率值
             all_probs = probs.data.cpu().numpy() if hasattr(probs.data, 'cpu') else np.array(probs.data)
             top5conf_list = probs.top5conf

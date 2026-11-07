@@ -295,7 +295,12 @@ def main():
     cls_json = os.path.join(args.out, 'class_names.json')
     with open(cls_json, 'w', encoding='utf-8') as f:
         json.dump({str(k): v for k, v in names.items()}, f, ensure_ascii=False, indent=2)
-    print(f"✅ 已生成 {cls_json} —— 请人工核对未确证类的中文名后复制到仓库 models/ 覆盖 class_names.json")
+    print(f"✅ 已生成 {cls_json} —— 请人工核对未确证类的中文名后，与训练得到的 best.pt 成对复制到仓库 models/")
+    for idx, label in names.items():
+        text = str(label)
+        if text.strip().casefold() in {"other", "others", "其他", "其它"} or "非植物" in text or "无关图片" in text:
+            print(f"拒识类: YOLO index {idx} = {label}。部署时 class_names.json 必须和 best.pt 一起换；预测端把该类 top-1 判为拒识，而不是病名。")
+            break
 
     print("\n下一步：python training/train_yolov8.py --data " + yaml_path)
 
