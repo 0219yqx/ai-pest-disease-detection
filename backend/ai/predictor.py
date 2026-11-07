@@ -1,4 +1,7 @@
 import os, sys, json, numpy as np
+LOW_CONF_THRESHOLD = float(os.getenv('LOW_CONF_THRESHOLD', '0.5'))
+NOT_PLANT_MSG = '未检测到植物叶片或病虫害，请上传作物叶片或病斑特写'
+LOW_CONF_MSG = '置信度较低，可能不是病虫害相关图片，请换一张叶片或病斑特写再试'
 from pathlib import Path
 from config import settings
 
@@ -50,6 +53,13 @@ class Predictor:
             return {"disease":"模型未加载","confidence":0,"crop":"","symptoms":"","treatment":"请先训练模型","source":"error"}
         
         try:
+            # 0. 植物门控：轻量 MobileNet 二分类，拦截食物/人物/物品等无关图
+            from ai.plant_gate import get_gate
+            gate = get_gate()
+            plant_score = gate.score(image_path)
+            thr = getattr(gate, "threshold", 0.57)
+            if plant_score is not None and plant_score < thr:
+                return {"disease":"非农作物","confidence":0,"crop":"","symptoms":"未检测到植物叶片或病虫害","treatment":"请上传作物叶片或病斑特写","source":"rejected","is_confident":False,"low_confidence":True,"message":NOT_PLANT_MSG,"class_id":-1,"reason":"not_plant","plant_score":round(plant_score,4)}
             results = self._model(image_path)
             if not results or len(results) == 0:
                 return {"disease":"识别失败","confidence":0,"crop":"","symptoms":"","treatment":"请重试","source":"error"}
@@ -78,22 +88,22 @@ class Predictor:
             
             # 1. 绝对置信度过低：任何低于 0.35 的预测都不可信
             #    真实农作物即使患病也通常在 0.5 以上
-            if top1_conf < 0.35:
-                return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"上传的图片不是农作物或不在识别范围内","treatment":"请上传农作物叶片、果实或茎干的清晰照片","source":"rejected","class_id":-1,"reason":"low_confidence"}
+            if top1_conf < LOW_CONF_THRESHOLD:
+                return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"上传的图片不是农作物或不在识别范围内","treatment":"请上传农作物叶片、果实或茎干的清晰照片","source":"rejected","is_confident":False,"low_confidence":True,"message":LOW_CONF_MSG,"class_id":-1,"reason":"low_confidence"}
             
             # 2. 置信度差距检测：top1 和 top2 差异太小说明模型在犹豫
             #    阈值放宽到 0.35 配合 top1<0.6，能覆盖纯色图等低信息图片
             if conf_gap < 0.35 and top1_conf < 0.6:
-                return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"图片特征模糊，模型无法确定是否是农作物病虫害","treatment":"请上传清晰的农作物叶片、果实或茎干照片，确保主体突出","source":"rejected","class_id":-1,"conf_gap":round(conf_gap,4),"reason":"small_gap"}
+                return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"图片特征模糊，模型无法确定是否是农作物病虫害","treatment":"请上传清晰的农作物叶片、果实或茎干照片，确保主体突出","source":"rejected","is_confident":False,"low_confidence":True,"message":LOW_CONF_MSG,"class_id":-1,"conf_gap":round(conf_gap,4),"reason":"small_gap"}
             
             # 3. 信息熵检测：概率分布平坦说明模型不认识这个物体
             if norm_entropy > 0.80 and top1_conf < 0.5:
-                return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"上传的图片不在训练数据范围内，无法识别","treatment":"请上传训练数据中包含的农作物照片（水稻、小麦、玉米、番茄等）","source":"rejected","class_id":-1,"entropy":round(norm_entropy,4),"reason":"high_entropy"}
+                return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"上传的图片不在训练数据范围内，无法识别","treatment":"请上传训练数据中包含的农作物照片（水稻、小麦、玉米、番茄等）","source":"rejected","is_confident":False,"low_confidence":True,"message":LOW_CONF_MSG,"class_id":-1,"entropy":round(norm_entropy,4),"reason":"high_entropy"}
             
             # 4. top1 与 top3 平均差距检测：如果 top1 仅略高于后续几个，也是不确定信号
             top3_avg_conf = float(sum(top5conf_list[i] for i in range(min(3, len(top5conf_list)))) / min(3, len(top5conf_list)))
             if top1_conf - top3_avg_conf < 0.2 and top1_conf < 0.5:
-                return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"图片特征不明确，无法确认是否为农作物病虫害","treatment":"请拍摄农作物患病部位特写，确保光线充足、主体清晰","source":"rejected","class_id":-1,"reason":"flat_distribution"}
+                return {"disease":"非农作物","confidence":round(top1_conf,4),"crop":"","symptoms":"图片特征不明确，无法确认是否为农作物病虫害","treatment":"请拍摄农作物患病部位特写，确保光线充足、主体清晰","source":"rejected","is_confident":False,"low_confidence":True,"message":LOW_CONF_MSG,"class_id":-1,"reason":"flat_distribution"}
             
             top5_idx = [int(probs.top5[i]) for i in range(min(5, len(probs.top5)))]
             top5_conf = [float(top5conf_list[i]) for i in range(min(5, len(top5conf_list)))]
@@ -148,6 +158,9 @@ class Predictor:
                 "top5": top5_conf,
                 "top5_list": top5_list,
                 "candidates": candidates,
+                "is_confident": True,
+                "low_confidence": False,
+                "message": "",
             }
                 
         except Exception as e:

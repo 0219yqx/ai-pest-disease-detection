@@ -49,3 +49,12 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=True)
+
+@app.on_event("startup")
+def _preload_plant_gate():
+    # 启动时预加载轻量 MobileNet 植物门控，避免首个请求变慢
+    try:
+        from ai.plant_gate import get_gate
+        get_gate()
+    except Exception as e:
+        print(f"[PlantGate] 预加载失败: {e}")
