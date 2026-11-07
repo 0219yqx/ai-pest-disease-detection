@@ -1,0 +1,7 @@
+# 只在 Windows 训练机上安装。Web 后端不依赖这里的 datasets。
+ultralytics
+torch
+torchvision
+Pillow
+datasets
+huggingface_hub

@@ -29,5 +29,14 @@ uploads/*
 # Models (large files, track separately)
 *.pth
 
+# v4 训练在本机 Windows 上跑。权重、数据和日志不入库。
+# 已跟踪的 models/best.pt 不受下面目录规则影响。
+/dataset_v3/
+/dataset_v4/
+/retrain_run/
+/output/
+/models/v3/
+/models/v4/
+
 # 比赛材料（不入库，保留本地）
 .hermes/desktop-attachments/
