@@ -99,7 +99,7 @@
         <div v-if="result && !loading" class="result-content animate-scale-in">
           <!-- 拒识 / 低置信度提示 -->
           <div v-if="result.low_confidence || result.source === 'rejected'" class="reject-notice">
-            <div class="rn-title">{{ result.reason === 'not_plant' ? '未识别到作物' : '结果不可靠' }}</div>
+            <div class="rn-title">{{ rejectNoticeTitle }}</div>
             <div class="rn-msg">{{ result.message || '置信度较低，可能不是病虫害相关图片，请换一张叶片或病斑特写再试' }}</div>
           </div>
           <!-- 主结果 Banner -->
@@ -315,6 +315,11 @@ const sourceLabel = computed(() => {
   if (result.value.source === 'rejected') return '系统拒识'
   if (result.value.source === 'error') return '模型异常'
   return '后端返回'
+})
+const rejectNoticeTitle = computed(() => {
+  const reason = result.value?.reason
+  if (reason === 'not_plant' || reason === 'other_class') return '未识别到作物'
+  return '结果不可靠'
 })
 
 // 置信度等级（仅表示模型对该结果的把握程度，非病害严重程度）

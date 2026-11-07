@@ -80,7 +80,9 @@ def main():
 
     best = Path(args.project) / args.name / 'weights' / 'best.pt'
     print(f"\n训练完成，最优模型: {best}")
-    print("请复制到仓库 models/best.pt，并核对 models/class_names.json 与 dataset.yaml 一致。")
+    print("请把 best.pt 与同一次训练生成的 class_names.json 成对复制到仓库 models/。")
+    print("v3（67 类）按文件夹名字母序，other 在 YOLO index 1，展示名应为「非植物/无关图片」。")
+    print("只换权重、沿用旧的 class_names.json，会把拒识类显示成错误病名。")
 
 
 if __name__ == '__main__':
