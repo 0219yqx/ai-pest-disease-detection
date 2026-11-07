@@ -97,6 +97,11 @@
         </div>
 
         <div v-if="result && !loading" class="result-content animate-scale-in">
+          <!-- 拒识 / 低置信度提示 -->
+          <div v-if="result.low_confidence || result.source === 'rejected'" class="reject-notice">
+            <div class="rn-title">{{ result.reason === 'not_plant' ? '未识别到作物' : '结果不可靠' }}</div>
+            <div class="rn-msg">{{ result.message || '置信度较低，可能不是病虫害相关图片，请换一张叶片或病斑特写再试' }}</div>
+          </div>
           <!-- 主结果 Banner -->
           <div class="result-banner" :style="{'--accent': accentColor}">
             <div class="rb-top">
@@ -327,7 +332,7 @@ const confidenceLabel = computed(() => {
 const confidenceAdvice = computed(() => {
   if (!result.value) return { title: '--', action: '--' }
   if (result.value.source === 'rejected') {
-    return { title: '非识别范围', action: '请重新上传清晰的作物叶片、果实或茎秆照片' }
+    return { title: '非识别范围', action: result.value.message || '请重新上传清晰的作物叶片、果实或茎秆照片' }
   }
   if (confidenceLevel.value === 'high') {
     return { title: '模型可信度高', action: '建议结合田间症状和发生时期确认后用药' }
@@ -398,6 +403,10 @@ async function submitDiagnose() {
       treatment: kn ? kn.treatment_chemical : (data.treatment || ''),
       source: data.source || 'yolov8',
       class_id: data.class_id,
+      low_confidence: !!data.low_confidence,
+      is_confident: data.is_confident !== false,
+      message: data.message || '',
+      reason: data.reason || '',
     }
     resultLatency.value = Math.round(performance.now() - t0)
     candidates.value = loadCandidatesFromBackend(data, crop || (kn ? kn.crop : ''), cnName)
@@ -525,6 +534,9 @@ function resetUpload() {
 .upload-actions { display: flex; gap: 10px; }
 
 /* ---- 结果区 ---- */
+.reject-notice { border: 1px solid #d9b26a; border-left: 4px solid #b7862c; background: #fbf6ea; padding: 12px 14px; border-radius: 6px; margin-bottom: 14px; }
+.rn-title { font-size: 15px; font-weight: 600; color: #7a5a1c; margin-bottom: 4px; }
+.rn-msg { font-size: 14px; color: #5c4a2a; line-height: 1.6; }
 .result-card { padding: 24px; display: flex; flex-direction: column; }
 .result-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
